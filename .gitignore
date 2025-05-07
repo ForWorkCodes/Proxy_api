@@ -1,0 +1,14 @@
+.env
+.idea
+.vscode
+.conda
+.venv
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*/__pycache__
+__pycache__
+/venv
+Dockerfile
+.windows
