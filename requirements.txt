@@ -1,8 +1,8 @@
-fastapi=0.115.12
-aiocache=0.12.3
-sqlalchemy=2.0.40
-alembic=1.15.2
+fastapi==0.115.12
+aiocache==0.12.3
+sqlalchemy==2.0.40
+alembic==1.15.2
 uvicorn[standard]
-asyncpg=0.30.0
+asyncpg==0.30.0
 python-dotenv
 pydantic-settings
