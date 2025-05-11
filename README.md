@@ -13,6 +13,9 @@
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
+rename and config - alembic.axample.ini
+
+alembic upgrade head - update db
 ```
 3. Create .env
 
