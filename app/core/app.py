@@ -9,7 +9,8 @@ def create_app() -> FastAPI:
     )
     
     # Import and include routers
-    from app.api.endpoints import system, debug
+    from app.api.endpoints import system, debug, countries
+    app.include_router(countries.router, prefix=settings.API_V1_STR, tags=["Proxy_api"])
     app.include_router(system.router, prefix=settings.API_V1_STR, tags=["System"])
     app.include_router(debug.router, prefix=settings.API_V1_STR, tags=["Debug"])
     

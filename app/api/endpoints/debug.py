@@ -4,7 +4,7 @@ from typing import Dict, Any
 
 router = APIRouter()
 
-@router.post("/echo")
+@router.post("/echo", tags=["Debug"])
 def echo(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Echo endpoint for testing and debugging

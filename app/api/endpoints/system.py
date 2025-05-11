@@ -7,7 +7,11 @@ from app.core.config import settings
 
 router = APIRouter()
 
-@router.get("/status")
+@router.get("/", tags=["System"])
+def root() -> Dict[str, str]:
+    return {"message": "API is ready"}
+
+@router.get("/status", tags=["System"])
 def get_status() -> Dict[str, Any]:
     """
     Get detailed status information about the API
@@ -20,7 +24,7 @@ def get_status() -> Dict[str, Any]:
         "platform": platform.platform()
     }
 
-@router.get("/health")
+@router.get("/health", tags=["System"])
 def health_check() -> Dict[str, str]:
     """
     Health check endpoint for monitoring
@@ -30,7 +34,7 @@ def health_check() -> Dict[str, str]:
         "timestamp": datetime.now().isoformat()
     }
 
-@router.get("/version")
+@router.get("/version", tags=["System"])
 def get_version() -> Dict[str, str]:
     """
     Get API version information
