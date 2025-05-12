@@ -8,7 +8,7 @@ class TopupRequest(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    owner: Mapped["User"] = relationship("User", back_populates="topup_requests")
+    owner: Mapped["User"] = relationship("User", back_populates="topup_requests", lazy="selectin")
 
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False)

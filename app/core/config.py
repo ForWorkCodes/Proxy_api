@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Proxy API"
     VERSION: str = "1.0.0"
     DESCRIPTION: str = "API for proxy management and monitoring"
-    POSTGRES_DSN: str = "postgresql://postgres:postgres@localhost:port/postgres"
+    POSTGRES_DSN: str = "postgresql+asyncpg://postgres:postgres@localhost:port/postgres"
     API_SECRET: str = "supersecrettoken123"
     PROXY_API_KEY: str = "proxy"
     PROXY_API_URL: str = "https://proxy.site"

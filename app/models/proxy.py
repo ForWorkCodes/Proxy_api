@@ -9,7 +9,7 @@ class Proxy(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    owner: Mapped["User"] = relationship("User", back_populates="proxies")
+    owner: Mapped["User"] = relationship("User", back_populates="proxies", lazy="selectin")
     proxy_id: Mapped[str] = mapped_column(String, nullable=False)
     ip: Mapped[str] = mapped_column(String, nullable=False)
     host: Mapped[str] = mapped_column(String, nullable=False)
