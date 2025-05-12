@@ -2,6 +2,8 @@ from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 from sqlalchemy import String, Integer, Boolean, DateTime
 from datetime import datetime, timezone
 from app.core.sync_db import Base
+from sqlalchemy.orm import relationship
+from typing import List, Optional
 
 class User(Base):
     __tablename__ = "users"
@@ -15,3 +17,15 @@ class User(Base):
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    proxies: Mapped[List["Proxy"]] = relationship(
+        "Proxy", back_populates="owner"
+        )
+    balance: Mapped[Optional["Balance"]] = relationship(
+        "Balance", back_populates="owner", uselist=False, cascade="all, delete-orphan"
+        )
+    transactions: Mapped[List["Transaction"]] = relationship(
+        "Transaction", back_populates="owner"
+        )
+    topup_requests: Mapped[List["TopupRequest"]] = relationship(
+        "TopupRequest", back_populates="owner", cascade="all, delete-orphan"
+        )
