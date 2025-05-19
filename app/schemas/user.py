@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from app.models.balance import Balance
 
+
 class UserBase(BaseModel):
     telegram_id: str
     username: Optional[str]
@@ -10,8 +11,10 @@ class UserBase(BaseModel):
     language: str
     chat_id: Optional[str]
 
+
 class UserCreate(UserBase):
     pass
+
 
 class UserOut(UserBase):
     id: int
@@ -25,6 +28,7 @@ class UserOut(UserBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class UserLangUpdate(BaseModel):
     language: str
