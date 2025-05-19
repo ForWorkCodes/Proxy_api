@@ -89,6 +89,7 @@ async def buy_proxy(
     request: ProxyBuyRequest,
     session: AsyncSession = Depends(get_async_session)
 ):
+    return
     try:
         data_price = await get_proxy_price_logic(request.version, request.quantity, request.days, request.telegram_id)
     except ValueError as e:
