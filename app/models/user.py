@@ -34,6 +34,3 @@ class User(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         "Transaction", back_populates="owner", lazy="selectin"
         )
-    topup_requests: Mapped[List["TopupRequest"]] = relationship(
-        "TopupRequest", back_populates="owner", cascade="all, delete-orphan", lazy="selectin"
-        )

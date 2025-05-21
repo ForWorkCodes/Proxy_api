@@ -18,6 +18,15 @@ class Transaction(Base):
     provider: Mapped[str] = mapped_column(String(50), nullable=True)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
 
+    related_ids: Mapped[str] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(100), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now(timezone.utc)
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc)
     )

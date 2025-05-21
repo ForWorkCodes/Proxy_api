@@ -6,10 +6,10 @@ from app.models.balance import Balance
 
 class UserBase(BaseModel):
     telegram_id: str
+    chat_id: Optional[str]
     username: Optional[str]
     firstname: Optional[str]
     language: str
-    chat_id: Optional[str]
 
 
 class UserCreate(UserBase):

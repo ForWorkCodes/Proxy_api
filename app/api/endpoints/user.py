@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.get("/users/by-telegram-id/{telegram_id}", response_model=UserOut)
 async def get_user_by_telegram_id(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(
@@ -23,15 +24,20 @@ async def get_user_by_telegram_id(telegram_id: str, session: AsyncSession = Depe
     user = result.scalar_one_or_none()
     
     if not user:
-        logger.warning(f"/users/by-telegram-id/={telegram_id}")
-        raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "success": False,
+            "status_code": 404,
+            "error": "User not found"
+        }
     
     return user
+
 
 @router.post("/users/upsert", response_model=UserOut | None)
 async def upsert_user(data: UserCreate, session: AsyncSession = Depends(get_async_session)):
     user = await upsert_user_with_balance(data, session)
     return UserOut(**user.__dict__)
+
 
 @router.patch("/users/{telegram_id}/language")
 async def update_language(telegram_id: str, data: UserLangUpdate, session: AsyncSession = Depends(get_async_session)):

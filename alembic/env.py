@@ -22,7 +22,6 @@ from app.core.sync_db import Base
 from app.models.user import User
 from app.models.balance import Balance
 from app.models.transaction import Transaction
-from app.models.topup_request import TopupRequest
 from app.models.proxy import Proxy
 
 target_metadata = Base.metadata

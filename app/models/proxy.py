@@ -12,10 +12,9 @@ class Proxy(Base):
     owner: Mapped["User"] = relationship("User", back_populates="proxies", lazy="selectin")
     proxy_id: Mapped[str] = mapped_column(String, nullable=False)
     ip: Mapped[str] = mapped_column(String, nullable=False)
+    transaction_id: Mapped[int] = mapped_column(Integer, nullable=False)
     host: Mapped[str] = mapped_column(String, nullable=False)
     port: Mapped[int] = mapped_column(Integer, nullable=False)
-    user: Mapped[str] = mapped_column(String, nullable=True)
-    password: Mapped[str] = mapped_column("password", String, nullable=True)
     type: Mapped[str] = mapped_column(String, nullable=False) #http/https/socks5
     country: Mapped[str] = mapped_column(String, nullable=True)
     date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))

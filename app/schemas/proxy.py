@@ -23,3 +23,20 @@ class ProxyItem(BaseModel):
 class ProxyBuyResponse(BaseModel):
     status: str
     proxies: List[ProxyItem]
+
+
+class ProxyItemDB(BaseModel):
+    user_id: int
+    proxy_id: str
+    ip: str
+    transaction_id: int
+    host: str
+    port: int
+    type: str
+    country: str
+    date: datetime
+    date_end: datetime
+    unixtime: int
+    unixtime_end: int
+    descr: str
+    active: bool
