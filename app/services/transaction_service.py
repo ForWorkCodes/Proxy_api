@@ -9,7 +9,7 @@ class TransactionService:
         self.session = session
         self.balance_service = BalanceService(self.session)
 
-    async def create_refund_transaction(self, user: User, amount: float, new_balance: float):
+    async def create_refund_transaction(self, user: User, amount: float, new_balance: float, related_ids: str | None):
         if not user or not user.balance:
             return {
                 "success": False,
@@ -21,6 +21,7 @@ class TransactionService:
             user_id=user.id,
             amount=amount,
             balance_after=new_balance,
+            related_ids=related_ids,
             type="refund",
             status="paid",
             comment=f"Refund for user {user.id}"

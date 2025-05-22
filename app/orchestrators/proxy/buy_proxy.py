@@ -82,7 +82,7 @@ class BuyProxyOrchestrator:
 
             # Returning money
             new_balance = self.balance_service.check_plus_balance(user, price)
-            transaction_refund = await self.transaction_service.create_refund_transaction(user, price, new_balance)
+            transaction_refund = await self.transaction_service.create_refund_transaction(user, price, new_balance, str(transaction_id))
             await self.balance_service.add_money(user, price)
 
             logger.info(f"[REFUND] Returned {price} to user ID={user.id}, balance restored to {new_balance}")
