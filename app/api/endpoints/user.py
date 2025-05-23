@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/users/by-telegram-id/{telegram_id}", response_model=UserOut)
+@router.get("/user/by-telegram-id/{telegram_id}", response_model=UserOut)
 async def get_user_by_telegram_id(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(
         select(User)
@@ -33,13 +33,13 @@ async def get_user_by_telegram_id(telegram_id: str, session: AsyncSession = Depe
     return user
 
 
-@router.post("/users/upsert", response_model=UserOut | None)
+@router.post("/user/upsert", response_model=UserOut | None)
 async def upsert_user(data: UserCreate, session: AsyncSession = Depends(get_async_session)):
     user = await upsert_user_with_balance(data, session)
     return UserOut(**user.__dict__)
 
 
-@router.patch("/users/{telegram_id}/language")
+@router.patch("/user/{telegram_id}/language")
 async def update_language(telegram_id: str, data: UserLangUpdate, session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()

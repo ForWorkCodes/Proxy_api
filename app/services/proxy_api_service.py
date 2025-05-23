@@ -122,7 +122,7 @@ class ProxyApiService:
 
             return {
                 "success": False,
-                "status_code": 400,
+                "status_code": data.get("error_id"),
                 "error": data.get("error", "Unknown error")
             }
 

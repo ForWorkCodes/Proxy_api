@@ -1,8 +1,30 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.proxy import ProxyItemDB
+from sqlalchemy import select
+from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse
 from app.models.user import User
 from app.models.proxy import Proxy
+from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from datetime import datetime
+from typing import List
+import logging
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger(__name__)
+
+critical_handler = RotatingFileHandler(
+    "logs/proxy_critical.log",
+    maxBytes=1_000_000,
+    backupCount=5
+)
+critical_handler.setLevel(logging.ERROR)
+critical_handler.setFormatter(logging.Formatter(
+    '[%(asctime)s] [%(levelname)s] %(message)s'
+))
+
+proxy_critical_logger = logging.getLogger("proxy_critical")
+proxy_critical_logger.setLevel(logging.ERROR)
+proxy_critical_logger.addHandler(critical_handler)
+proxy_critical_logger.propagate = False
 
 
 class ProxyService:
@@ -11,7 +33,8 @@ class ProxyService:
 
     async def create_list_proxy(self, user: User, transaction_id: int, data_from_api: dict):
         proxy_list = data_from_api.get("list", {})
-        results = []
+        country = data_from_api.get("country")
+        proxies: List[ProxyItem] = []
 
         for proxy_id, proxy_data in proxy_list.items():
             try:
@@ -22,24 +45,48 @@ class ProxyService:
                     transaction_id=transaction_id,
                     host=proxy_data["host"],
                     port=proxy_data["port"],
+                    version=proxy_data["version"],
                     type=proxy_data["type"],
-                    country=proxy_data["descr"].split(":")[-1] if proxy_data.get("descr") else None,
+                    country=country,
                     date=datetime.strptime(proxy_data["date"], "%Y-%m-%d %H:%M:%S"),
                     date_end=datetime.strptime(proxy_data["date_end"], "%Y-%m-%d %H:%M:%S"),
                     unixtime=proxy_data["unixtime"],
                     unixtime_end=proxy_data["unixtime_end"],
                     descr=proxy_data.get("descr", ""),
-                    active=True
+                    active=proxy_data["active"]
                 )
 
-                proxy_obj = await self.create_proxy(item)
-                results.append({"proxy_id": proxy_id, "success": True})
+                await self.create_proxy(item)
+
+                proxies.append(ProxyItem(
+                    ip=proxy_data["ip"],
+                    host=proxy_data["host"],
+                    port=proxy_data["port"],
+                    version=proxy_data["version"],
+                    type=proxy_data["type"],
+                    country=country,
+                    date=datetime.strptime(proxy_data["date"], "%Y-%m-%d %H:%M:%S"),
+                    date_end=datetime.strptime(proxy_data["date_end"], "%Y-%m-%d %H:%M:%S"),
+                    unixtime=proxy_data["unixtime"],
+                    unixtime_end=proxy_data["unixtime_end"],
+                    descr=proxy_data.get("descr", ""),
+                    active=proxy_data["active"]
+                ))
             except Exception as e:
-                results.append({"proxy_id": proxy_id, "success": False, "error": str(e)})
+                error_msg = {
+                    "user_id": user.id,
+                    "proxy_data": proxy_data,
+                    "transaction_id": transaction_id,
+                    "error": str(e)
+                }
+                proxy_critical_logger.error(f"[SAVE ERROR] Failed to save proxy: {error_msg}")
 
         return {
-            "success": all(r["success"] for r in results),
-            "proxies": results
+            "success": True,
+            "quantity": len(proxy_list),
+            "days": data_from_api.get("period"),
+            "country": country,
+            "proxies": proxies
         }
 
     async def create_proxy(self, data: ProxyItemDB):
@@ -47,9 +94,10 @@ class ProxyService:
             user_id=data.user_id,
             proxy_id=data.proxy_id,
             ip=data.ip,
-            transaction_ip=data.transaction_ip,
+            transaction_id=data.transaction_id,
             host=data.host,
             port=data.port,
+            version=data.version,
             type=data.type,
             country=data.country,
             date=data.date,
@@ -64,5 +112,14 @@ class ProxyService:
 
         return proxy
 
-    async def get_list_proxy_by_user(self, user_id: int):
-        print("da")
+    async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
+        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active == True)
+        result = await self.session.execute(db)
+        proxies: List[Proxy] = result.scalars().all()
+        return proxies
+
+    def to_proxy_item_response(self, item: ProxyItem) -> ProxyItemResponse:
+        return ProxyItemResponse(
+            **item.model_dump(exclude={"version"}),
+            version=REVERSE_PROXY_TYPE_MAPPING.get(str(item.version), "unknown")
+        )

@@ -12,6 +12,7 @@ class Proxy(Base):
     owner: Mapped["User"] = relationship("User", back_populates="proxies", lazy="selectin")
     proxy_id: Mapped[str] = mapped_column(String, nullable=False)
     ip: Mapped[str] = mapped_column(String, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=True)
     transaction_id: Mapped[int] = mapped_column(Integer, nullable=False)
     host: Mapped[str] = mapped_column(String, nullable=False)
     port: Mapped[int] = mapped_column(Integer, nullable=False)

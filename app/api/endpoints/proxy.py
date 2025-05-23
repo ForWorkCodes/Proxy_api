@@ -2,13 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_async_session
 from app.orchestrators.proxy import BuyProxyOrchestrator
-from app.services import ProxyApiService
-from app.models.proxy import Proxy
-from app.models.transaction import Transaction
-from app.schemas.proxy import ProxyBuyRequest, ProxyBuyResponse
+from app.services import ProxyApiService, ProxyService, UserService
+from app.schemas.proxy import ProxyBuyRequest, ProxyItem
+from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 import httpx
 import logging
-from datetime import datetime
 from fastapi import Query
 
 router = APIRouter()
@@ -44,15 +42,46 @@ async def buy_proxy(
 ):
     orchestrator = BuyProxyOrchestrator(session)
     result = await orchestrator.execute(request)
+
+    proxy_dicts = []
+    for p in result["proxies"]:
+        item = ProxyItem.from_orm(p).dict()
+        item["version"] = REVERSE_PROXY_TYPE_MAPPING.get(str(p.version), "unknown")
+        proxy_dicts.append(item)
+
     return result
 
-    return ProxyBuyResponse(
-        status="success",
-        proxies=[{
-            "ip": p.ip,
-            "port": p.port,
-            "type": p.type,
-            "country": p.country,
-            "date_end": p.date_end
-        } for p in proxies]
-    )
+@router.get("/get-proxy-telegram-id/{telegram_id}")
+async def get_proxy(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
+    user_service = UserService(session)
+    user = await user_service.get_user_by_telegram_id(telegram_id)
+    if not user or not user:
+        logger.warning(f"[USER FAILED] User or balance not found for telegram_id={telegram_id}")
+        return {
+            "success": False,
+            "status_code": 404,
+            "error": "User or balance not found"
+        }
+
+    proxy_service = ProxyService(session)
+    proxies = await proxy_service.get_list_proxy_by_user(user)
+
+    proxy_dicts = []
+    for p in proxies:
+        item = ProxyItem.from_orm(p).dict()
+        item["version"] = REVERSE_PROXY_TYPE_MAPPING.get(str(p.version), "unknown")
+        proxy_dicts.append(item)
+
+    if not proxies:
+        return {
+            "success": False,
+            "status_code": 2001,
+            "error": "No proxies found"
+        }
+    else:
+        return {
+            "success": True,
+            "status_code": 200,
+            "error": "",
+            "proxies": proxy_dicts
+        }

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.proxy import ProxyBuyRequest
+from app.schemas.proxy import ProxyBuyRequest, ProxyBuyResponse
 from app.services import ProxyApiService, BalanceService, TransactionService, ProxyService, UserService
 import logging
 
@@ -92,24 +92,23 @@ class BuyProxyOrchestrator:
 
         # Creating proxy for user
         result = await self.proxy_service.create_list_proxy(user, transaction_id, buying_status["data"])
-        if not result["success"]:
-            logger.error(f"[SAVE FAILED] Could not save proxies to DB")
-            return {
-                "success": False,
-                "status_code": 500,
-                "error": "Some proxies failed to save",
-                "details": result["proxies"]
-            }
-
-        logger.info(f"[SAVE OK] All proxies saved to DB for user ID={user.id}")
+        logger.info(f"[SAVE OK] proxies saved to DB for user ID={user.id}")
 
         # Update Transaction status
         comment = "Purchase complete"
         await self.transaction_service.update_status(transaction_id, "completed", comment)
         logger.info(f"[TRANSACTION COMPLETED] ID={transaction_id}")
 
-        return {
-            "success": True,
-            "status_code": 200,
-            "data": result["proxies"]
-        }
+        proxy_dicts = [self.proxy_service.to_proxy_item_response(p).model_dump() for p in result["proxies"]]
+
+        result = ProxyBuyResponse(
+            success=True,
+            status_code=200,
+            error="",
+            quantity=result["quantity"],
+            price=price,
+            days=result["days"],
+            country=result["country"],
+            proxies=proxy_dicts
+        )
+        return result

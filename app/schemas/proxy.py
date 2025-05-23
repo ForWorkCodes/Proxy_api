@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -14,15 +14,47 @@ class ProxyBuyRequest(BaseModel):
 
 class ProxyItem(BaseModel):
     ip: str
+    host: str
     port: int
+    version: int
     type: str
     country: str
+    date: datetime
     date_end: datetime
+    unixtime: int
+    unixtime_end: int
+    descr: Optional[str] = None
+    active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProxyItemResponse(BaseModel):
+    ip: str
+    host: str
+    port: int
+    version: str
+    type: str
+    country: str
+    date: datetime
+    date_end: datetime
+    unixtime: int
+    unixtime_end: int
+    descr: Optional[str] = None
+    active: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProxyBuyResponse(BaseModel):
-    status: str
-    proxies: List[ProxyItem]
+    success: bool
+    status_code: int
+    error: str
+    quantity: int
+    price: float
+    days: int
+    country: str
+    proxies: List[ProxyItemResponse]
 
 
 class ProxyItemDB(BaseModel):
@@ -32,6 +64,7 @@ class ProxyItemDB(BaseModel):
     transaction_id: int
     host: str
     port: int
+    version: int
     type: str
     country: str
     date: datetime
