@@ -6,6 +6,7 @@ from app.core.db import get_async_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
+from app.services import UserService
 from app.services.user_registration import upsert_user_with_balance
 import logging
 
@@ -16,12 +17,8 @@ router = APIRouter()
 
 @router.get("/user/by-telegram-id/{telegram_id}", response_model=UserOut)
 async def get_user_by_telegram_id(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(
-        select(User)
-        .options(selectinload(User.balance))
-        .where(User.telegram_id == telegram_id)
-    )
-    user = result.scalar_one_or_none()
+    user_service = UserService(session)
+    user = await user_service.get_user_by_telegram_id(telegram_id)
     
     if not user:
         return {
@@ -50,3 +47,18 @@ async def update_language(telegram_id: str, data: UserLangUpdate, session: Async
     user.updated_at = datetime.now(timezone.utc)
     await session.commit()
     return {"status": "updated"}
+
+
+@router.get("/user/get_balance/{telegram_id}")
+async def get_balance(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
+    user_service = UserService(session)
+    user = await user_service.get_user_by_telegram_id(telegram_id)
+
+    if not user or not user.balance:
+        return {
+            "success": False,
+            "status_code": 404,
+            "error": "User or balance not found"
+        }
+
+    return user.balance

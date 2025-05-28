@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+from sqlalchemy import select, and_
 from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse
 from app.models.user import User
 from app.models.proxy import Proxy
@@ -113,7 +114,7 @@ class ProxyService:
         return proxy
 
     async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
-        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active == True)
+        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active)
         result = await self.session.execute(db)
         proxies: List[Proxy] = result.scalars().all()
         return proxies
@@ -123,3 +124,21 @@ class ProxyService:
             **item.model_dump(exclude={"version"}),
             version=REVERSE_PROXY_TYPE_MAPPING.get(str(item.version), "unknown")
         )
+
+    async def get_proxy_by_telegram_ip_port(self, telegram_id: str, host: str, port: int) -> Proxy | None:
+        stmt = (
+            select(Proxy)
+            .join(Proxy.owner)
+            .options(joinedload(Proxy.owner))
+            .where(
+                and_(
+                    Proxy.owner.has(User.telegram_id == telegram_id),
+                    Proxy.host == host,
+                    Proxy.port == port,
+                    Proxy.active
+                )
+            )
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

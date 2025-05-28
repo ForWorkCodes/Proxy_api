@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_async_session
 from app.orchestrators.proxy import BuyProxyOrchestrator
 from app.services import ProxyApiService, ProxyService, UserService
-from app.schemas.proxy import ProxyBuyRequest, ProxyItem
+from app.schemas.proxy import ProxyBuyRequest, ProxyItem, ProxyGetRequest, ProxyCheckRequest
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 import httpx
 import logging
@@ -51,8 +51,17 @@ async def buy_proxy(
 
     return result
 
-@router.get("/get-proxy-telegram-id/{telegram_id}")
-async def get_proxy(telegram_id: str, session: AsyncSession = Depends(get_async_session)):
+
+@router.post("/get-proxy-telegram-id")
+async def get_proxy(
+    request: ProxyGetRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    logger.info(
+        f"Received /get-proxy-telegram-id request from telegram_id={request.telegram_id}"
+    )
+
+    telegram_id = request.telegram_id
     user_service = UserService(session)
     user = await user_service.get_user_by_telegram_id(telegram_id)
     if not user or not user:
@@ -85,3 +94,22 @@ async def get_proxy(telegram_id: str, session: AsyncSession = Depends(get_async_
             "error": "",
             "proxies": proxy_dicts
         }
+
+
+@router.post("/checker-proxy")
+async def checker_proxy(
+    request: ProxyCheckRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    logger.info(
+        f"Received /checker_proxy request from telegram_id={request.telegram_id}, "
+        f"address={request.address}"
+    )
+    try:
+        service = ProxyApiService(session)
+        data = await service.check_proxy(request.telegram_id, request.address)
+        return data
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail="Price check failed")

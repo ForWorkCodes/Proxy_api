@@ -73,3 +73,12 @@ class ProxyItemDB(BaseModel):
     unixtime_end: int
     descr: str
     active: bool
+
+
+class ProxyGetRequest(BaseModel):
+    telegram_id: str
+
+
+class ProxyCheckRequest(BaseModel):
+    telegram_id: str
+    address: str
