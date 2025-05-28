@@ -12,6 +12,9 @@ class ProxyApiService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.proxy_service = ProxyService(session)
+        self.headers = {
+            "X-Internal-Token": settings.INTERNAL_API_TOKEN
+        }
 
     async def get_proxy_price(self, version: str, quantity: int, days: int, telegram_id: str) -> dict:
         if version not in PROXY_TYPE_MAPPING:

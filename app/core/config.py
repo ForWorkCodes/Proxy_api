@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     API_SECRET: str = "supersecrettoken123"
     PROXY_API_KEY: str = "proxy"
     PROXY_API_URL: str = "https://proxy.site"
+    INTERNAL_API_TOKEN: str = "super - secret - token"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.core.config import settings
 from fastapi.staticfiles import StaticFiles
+from app.core.middleware import InternalAuthMiddleware
 
 
 def create_app() -> FastAPI:
@@ -9,6 +10,8 @@ def create_app() -> FastAPI:
         description=settings.DESCRIPTION,
         version=settings.VERSION,
     )
+
+    app.add_middleware(InternalAuthMiddleware)
 
     # Import and include routers
     from app.api.endpoints import system, debug, countries, user, proxy
