@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_async_session
 from app.orchestrators.proxy import BuyProxyOrchestrator
 from app.services import ProxyApiService, ProxyService, UserService
-from app.schemas.proxy import ProxyBuyRequest, ProxyItem, ProxyGetRequest, ProxyCheckRequest
+from app.schemas.proxy import ProxyBuyRequest, ProxyItem, ProxyGetRequest, ProxyCheckRequest, ProxyLinkRequest
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 import httpx
 import logging
@@ -101,6 +101,41 @@ async def checker_proxy(
     try:
         service = ProxyApiService(session)
         data = await service.check_proxy(request.telegram_id, request.address)
+        return data
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail="Price check failed")
+
+
+@router.post("/get-link-proxy")
+async def checker_proxy(
+    request: ProxyLinkRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    logger.info(
+        f"Received /get-link-proxy request from telegram_id={request.telegram_id}, "
+        f"file_type={request.file_type}"
+    )
+    try:
+        if request.file_type == "csv":
+            file = request.file_type
+        else:
+            file = "xls"
+
+        telegram_id = request.telegram_id
+        user_service = UserService(session)
+        user = await user_service.get_user_by_telegram_id(telegram_id)
+        if not user or not user:
+            logger.warning(f"[USER FAILED] User or balance not found for telegram_id={telegram_id}")
+            return {
+                "success": False,
+                "status_code": 404,
+                "error": "User or balance not found"
+            }
+
+        proxy_service = ProxyService(session)
+        data = await proxy_service.make_link_proxy_list(user, file)
         return data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

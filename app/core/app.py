@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import settings
+from fastapi.staticfiles import StaticFiles
 
 
 def create_app() -> FastAPI:
@@ -16,5 +17,7 @@ def create_app() -> FastAPI:
     app.include_router(proxy.router, prefix=settings.API_V1_STR, tags=["Proxy_api"])
     app.include_router(system.router, prefix=settings.API_V1_STR, tags=["System"])
     app.include_router(debug.router, prefix=settings.API_V1_STR, tags=["Debug"])
+
+    app.mount("/static", StaticFiles(directory="/tmp"), name="static")
 
     return app

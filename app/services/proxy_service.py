@@ -5,9 +5,11 @@ from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse
 from app.models.user import User
 from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
+from app.services.file_exporter import FileExporter
 from datetime import datetime
 from typing import List
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger(__name__)
@@ -142,3 +144,34 @@ class ProxyService:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def make_link_proxy_list(self, user: User, file_type: str) -> dict:
+        proxies = await self.get_list_proxy_by_user(user)
+        if not proxies:
+            return {
+                "success": False,
+                "status_code": 2001,
+                "error": "No proxies found"
+            }
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"proxies_{user.telegram_id}_{timestamp}.{file_type}"
+        filepath = os.path.join("/tmp", filename)
+
+        file_exporter = FileExporter(self.session)
+        if file_type == "csv":
+            file_exporter.export_proxies_to_csv(filepath, proxies, user.language)
+        elif file_type == "xls":
+            file_exporter.export_proxies_to_xls(filepath, proxies, user.language)
+        else:
+            return {
+                "success": False,
+                "status_code": 404,
+                "error": "Invalid file type"
+            }
+
+        return {
+            "success": True,
+            "status_code": 200,
+            "file_url": f"/static/{filename}"
+        }

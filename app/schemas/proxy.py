@@ -82,3 +82,8 @@ class ProxyGetRequest(BaseModel):
 class ProxyCheckRequest(BaseModel):
     telegram_id: str
     address: str
+
+
+class ProxyLinkRequest(BaseModel):
+    telegram_id: str
+    file_type: str
