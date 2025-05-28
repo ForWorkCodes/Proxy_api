@@ -42,13 +42,6 @@ async def buy_proxy(
 ):
     orchestrator = BuyProxyOrchestrator(session)
     result = await orchestrator.execute(request)
-
-    proxy_dicts = []
-    for p in result["proxies"]:
-        item = ProxyItem.from_orm(p).dict()
-        item["version"] = REVERSE_PROXY_TYPE_MAPPING.get(str(p.version), "unknown")
-        proxy_dicts.append(item)
-
     return result
 
 
