@@ -58,6 +58,7 @@ async def get_balance(telegram_id: str, session: AsyncSession = Depends(get_asyn
         return {
             "success": False,
             "status_code": 404,
+            "amount": 0,
             "error": "User or balance not found"
         }
 
