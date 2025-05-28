@@ -15,6 +15,7 @@ class User(Base):
     firstname: Mapped[str] = mapped_column(String, nullable=True)
     language: Mapped[str] = mapped_column(String(5))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    notification: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

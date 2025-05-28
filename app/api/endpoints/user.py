@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.user import UserCreate, UserOut, UserLangUpdate
+from app.schemas.user import UserCreate, UserOut, UserLangUpdate, UserNotificationUpdate
 from app.models.user import User
 from app.core.db import get_async_session
 from sqlalchemy import select
@@ -44,6 +44,19 @@ async def update_language(telegram_id: str, data: UserLangUpdate, session: Async
         raise HTTPException(status_code=404, detail="User not found")
 
     user.language = data.language
+    user.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    return {"status": "updated"}
+
+
+@router.patch("/user/{telegram_id}/notification")
+async def update_notification(telegram_id: str, data: UserNotificationUpdate, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.notification = data.notification
     user.updated_at = datetime.now(timezone.utc)
     await session.commit()
     return {"status": "updated"}

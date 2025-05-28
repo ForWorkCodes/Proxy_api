@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     username: Optional[str]
     firstname: Optional[str]
     language: str
+    notification: bool
 
 
 class UserCreate(UserBase):
@@ -22,6 +23,7 @@ class UserOut(UserBase):
     username: Optional[str]
     firstname: Optional[str]
     language: str
+    notification: Optional[bool]
     active: bool
     banned: bool
     created_at: datetime
@@ -32,3 +34,7 @@ class UserOut(UserBase):
 
 class UserLangUpdate(BaseModel):
     language: str
+
+
+class UserNotificationUpdate(BaseModel):
+    notification: bool

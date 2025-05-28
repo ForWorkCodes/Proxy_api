@@ -27,6 +27,7 @@ class UserService:
             user.telegram_id = data.telegram_id
             user.active = data.active
             user.banned = data.banned
+            user.notification = data.notification
             user.chat_id = data.chat_id
         else:
             user = User(**data.model_dump())
