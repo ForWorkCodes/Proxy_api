@@ -22,6 +22,10 @@ class WebhookOrchestrator:
                 f"[TRANSACTION FAILED] Could not found transaction by external_id: {external_id}")
             return {"status": "error"}
 
+        logger.info(
+                f"[TRANSACTION INFO] For TopUp by external_id: {external_id}. "
+                f"Where transaction.id = {transaction.id} and data[status]={data['status']}")
+
         if data["status"] == "failed" and transaction.status != "failed":
             await self.transaction_service.update_status(transaction.id, "failed", "Top Up failed")
             logger.error(
@@ -53,9 +57,10 @@ class WebhookOrchestrator:
 
         result_money = await self.balance_service.add_money(user, float(transaction.amount))
         if not result_money["success"]:
-            await self.transaction_service.update_status(transaction.id, "failed", "Top Up successful but we can't add money")
-
-        await self.transaction_service.update_status(transaction.id, "success", "Top Up successful. New balance: " +
-                                                     result_money["new_balance"])
+            await self.transaction_service.update_status(
+                transaction.id, "failed", "Top Up successful but we can't add money")
+        else:
+            await self.transaction_service.update_status(
+                transaction.id, "success", "Top Up successful. New balance: " + result_money["new_balance"])
 
         return {"status": "ok"}
