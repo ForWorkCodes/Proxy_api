@@ -10,7 +10,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/webhook/nowpayments")
+@router.post("/webhook/nowpayments/")
 async def nowpayments_webhook(request: Request, session: AsyncSession = Depends(get_async_session)):
     payload = await request.json()
     logger.info(f"[WEBHOOK] NowPayments payload: {payload}")
@@ -33,7 +33,7 @@ async def nowpayments_webhook(request: Request, session: AsyncSession = Depends(
         return {"status": "internal error"}
 
 
-@router.post("/webhook/cryptocloud")
+@router.post("/webhook/cryptocloud/")
 async def cryptocloud_webhook(request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
         payload = await request.json()

@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from app.core.config import settings
 from fastapi.staticfiles import StaticFiles
 from app.core.middleware import InternalAuthMiddleware
+from app.core.logging_config import setup_logging
 
+setup_logging()
 
 def create_app() -> FastAPI:
     app = FastAPI(
