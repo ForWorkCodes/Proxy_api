@@ -44,6 +44,8 @@ class TopUpOrchestrator:
             await self.transaction_service.update_status(transaction_id, "failed", response['error'])
             logger.error(f"[TRANSACTION FAILED] Could not create pending transaction: {response['error']}")
 
+        await self.transaction_service.update_external_id(transaction_id, response['invoice_id'])
+
         return {
             "success": response['success'],
             "status_code": 200,

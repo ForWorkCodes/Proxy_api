@@ -12,9 +12,11 @@ class WebhookOrchestrator:
         self.transaction_service = TransactionService(session)
 
     async def execute(self, data: dict):
-        user = await self.user_service.get_user_by_telegram_id(data["telegram_id"])
-        amount = data["amount"]
-        new_balance = self.balance_service.check_plus_balance(user, amount)
+        external_id = data["invoice_info"]["uuid"]
+        #user = await self.user_service.get_user_by_telegram_id(data["telegram_id"])
+        #amount = data["amount"]
+        #new_balance = self.balance_service.check_plus_balance(user, amount)
 
         #await self.transaction_service.create_topup_transaction(user, amount, new_balance, data["txid"], data["comment"])
-        await self.balance_service.add_money(user, amount)
+        #await self.balance_service.add_money(user, amount)
+        return {"status": "ok"}

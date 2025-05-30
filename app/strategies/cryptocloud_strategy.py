@@ -52,6 +52,7 @@ class CryptoCloudStrategy(TopUpStrategy):
                 return {
                     "success": True,
                     "link": data["result"]["link"],
+                    "invoice_id": data["result"]["uuid"],
                     "error": ""
                 }
 

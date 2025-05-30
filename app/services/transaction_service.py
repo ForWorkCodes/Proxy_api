@@ -115,3 +115,9 @@ class TransactionService:
             transaction.status = status
             transaction.comment += " | " + comment
             await self.session.commit()
+
+    async def update_external_id(self, transaction_id: int, external_id: str):
+        transaction = await self.session.get(Transaction, transaction_id)
+        if transaction:
+            transaction.external_id = external_id
+            await self.session.commit()

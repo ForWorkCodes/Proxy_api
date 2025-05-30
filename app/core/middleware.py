@@ -6,7 +6,7 @@ from app.core.config import settings
 
 class InternalAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        open_paths = ["/docs", "/openapi.json", "/redoc", "/static", "/webhook/cryptocloud"]
+        open_paths = ["/docs", "/openapi.json", "/redoc", "/static", "/webhook/cryptocloud/"]
         if any(request.url.path.startswith(path) for path in open_paths):
             return await call_next(request)
 

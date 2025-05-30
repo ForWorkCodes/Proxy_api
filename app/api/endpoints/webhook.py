@@ -39,6 +39,10 @@ async def cryptocloud_webhook(request: Request, session: AsyncSession = Depends(
         payload = await request.json()
         logger.info(f"[WEBHOOK] CryptoCloud payload: {payload}")
 
+        orchestrator = WebhookOrchestrator(session)
+        result = await orchestrator.execute(payload)
+        return result
+
         # Проверка, что необходимое поле есть
         if "status" not in payload or "order_id" not in payload:
             logger.warning("[WEBHOOK] Invalid payload from CryptoCloud")
@@ -54,12 +58,7 @@ async def cryptocloud_webhook(request: Request, session: AsyncSession = Depends(
             logger.warning(f"[WEBHOOK] Callback handling failed: {callback_result.get('error')}")
             return {"status": "error"}
 
-        # Обработка бизнес-логики
-        orchestrator = WebhookOrchestrator(session)
-        logger.warning(f"[WEBHOOK] Callback handling - orchestrator")
-        await orchestrator.execute(callback_result)
 
-        return {"status": "ok"}
 
     except Exception as e:
         logger.exception(f"[WEBHOOK ERROR] {e}")
