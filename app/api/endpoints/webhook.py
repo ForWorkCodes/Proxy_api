@@ -1,5 +1,4 @@
-from fastapi import Depends
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Form, Depends
 from app.factories.top_up_factory import TopUpStrategyFactory
 from app.orchestrators.webhook_orchestrator import WebhookOrchestrator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +35,8 @@ async def nowpayments_webhook(request: Request, session: AsyncSession = Depends(
 @router.post("/webhook/cryptocloud/")
 async def cryptocloud_webhook(request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
-        payload = await request.json()
+        form = await request.form()
+        payload = dict(form)
         logger.info(f"[WEBHOOK] CryptoCloud payload: {payload}")
 
         orchestrator = WebhookOrchestrator(session)
