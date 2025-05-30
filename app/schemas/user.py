@@ -38,3 +38,9 @@ class UserLangUpdate(BaseModel):
 
 class UserNotificationUpdate(BaseModel):
     notification: bool
+
+
+class TopUpRequest(BaseModel):
+    telegram_id: str
+    provider: str
+    amount: float

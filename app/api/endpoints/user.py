@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.user import UserCreate, UserOut, UserLangUpdate, UserNotificationUpdate
+from app.schemas.user import UserCreate, UserOut, UserLangUpdate, UserNotificationUpdate, TopUpRequest
 from app.models.user import User
 from app.core.db import get_async_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 from app.services import UserService
+from app.orchestrators.top_up_orchestrator import TopUpOrchestrator
 from app.services.user_registration import upsert_user_with_balance
 import logging
 
@@ -76,3 +77,11 @@ async def get_balance(telegram_id: str, session: AsyncSession = Depends(get_asyn
         }
 
     return user.balance
+
+
+@router.post("/get-link-topup")
+async def get_link_topup(data: TopUpRequest, session: AsyncSession = Depends(get_async_session)):
+    orchestrator = TopUpOrchestrator(session)
+    response = await orchestrator.execute(data.telegram_id, data.provider, data.amount)
+
+    return response

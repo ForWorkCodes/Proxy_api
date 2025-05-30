@@ -14,12 +14,13 @@ def create_app() -> FastAPI:
     app.add_middleware(InternalAuthMiddleware)
 
     # Import and include routers
-    from app.api.endpoints import system, debug, countries, user, proxy
+    from app.api.endpoints import system, debug, countries, user, proxy, webhook
     app.include_router(user.router, prefix=settings.API_V1_STR, tags=["User"])
     app.include_router(countries.router, prefix=settings.API_V1_STR, tags=["Proxy_api"])
     app.include_router(proxy.router, prefix=settings.API_V1_STR, tags=["Proxy_api"])
     app.include_router(system.router, prefix=settings.API_V1_STR, tags=["System"])
     app.include_router(debug.router, prefix=settings.API_V1_STR, tags=["Debug"])
+    app.include_router(webhook.router, prefix=settings.API_V1_STR, tags=["Webhook"])
 
     app.mount("/static", StaticFiles(directory="/tmp"), name="static")
 

@@ -76,6 +76,39 @@ class TransactionService:
                 "error": "Transaction was not created"
             }
 
+    async def create_wait_top_up_transaction(self, user: User, amount: float, new_balance: float):
+        if not user or not user.balance:
+            return {
+                "success": False,
+                "status_code": 404,
+                "error": "User or balance not found"
+            }
+
+        transaction = Transaction(
+            user_id=user.id,
+            amount=amount,
+            balance_after=new_balance,
+            type="topup",
+            status="pending",
+            comment=f"Top up by user {user.id}"
+        )
+
+        self.session.add(transaction)
+        await self.session.commit()
+
+        if transaction.id is not None:
+            return {
+                "success": True,
+                "status_code": 200,
+                "transaction_id": transaction.id
+            }
+        else:
+            return {
+                "success": False,
+                "status_code": 404,
+                "error": "Transaction was not created"
+            }
+
     async def update_status(self, transaction_id: int, status: str, comment):
         transaction = await self.session.get(Transaction, transaction_id)
         if transaction:

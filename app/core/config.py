@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     API_SECRET: str = "supersecrettoken123"
     PROXY_API_KEY: str = "proxy"
     PROXY_API_URL: str = "https://proxy.site"
+    CRYPTO_API_KEY_NOW_PAY: str = "***"
+    CRYPTOCLOUD_API_KEY: str = "***"
+    CRYPTOCLOUD_SHOP_ID: str = "***"
     INTERNAL_API_TOKEN: str = "super - secret - token"
 
     model_config = SettingsConfigDict(
