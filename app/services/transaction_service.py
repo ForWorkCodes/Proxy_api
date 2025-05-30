@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.transaction import Transaction
 from app.services import BalanceService
 from app.models.user import User
+from sqlalchemy import select
 
 
 class TransactionService:
@@ -121,3 +122,9 @@ class TransactionService:
         if transaction:
             transaction.external_id = external_id
             await self.session.commit()
+
+    async def get_transaction_by_external_id(self, external_id: str) -> Transaction | None:
+        raw = await self.session.execute(select(Transaction).where(Transaction.external_id == external_id))
+        transaction = raw.scalar_one_or_none()
+
+        return transaction
