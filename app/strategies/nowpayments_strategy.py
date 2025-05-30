@@ -2,6 +2,7 @@ import httpx
 from app.interfaces.top_up_strategy import TopUpStrategy
 from app.models.user import User
 from app.core.config import settings
+from fastapi import Request
 import logging
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,8 @@ class NowPaymentsStrategy(TopUpStrategy):
                 "error": error_res
             }
 
-    async def process_callback(self, payload: dict) -> dict:
+    async def process_callback(self, request: Request) -> dict:
+        payload = await request.json()
         status = payload.get("payment_status")
         order_id = payload.get("order_id")
 

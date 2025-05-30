@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from app.models import User
+from fastapi import Request
 
 
 class TopUpStrategy(ABC):
@@ -8,7 +9,7 @@ class TopUpStrategy(ABC):
         pass
 
     @abstractmethod
-    async def process_callback(self, payload: dict) -> dict:
+    async def process_callback(self, request: Request) -> dict:
         """
         Обработка входящего колбека от платёжного провайдера.
         """

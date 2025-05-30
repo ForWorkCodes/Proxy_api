@@ -2,6 +2,7 @@ import httpx
 from app.interfaces.top_up_strategy import TopUpStrategy
 from app.models.user import User
 from app.core.config import settings
+from fastapi import Request
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,26 +74,15 @@ class CryptoCloudStrategy(TopUpStrategy):
                 "error": error
             }
 
-    async def process_callback(self, payload: dict) -> dict:
+    async def process_callback(self, request: Request) -> dict:
+        form = await request.form()
+        payload = dict(form)
+        logger.info(f"[WEBHOOK] CryptoCloud payload: {payload}")
+
         status = payload.get("status")
-        order_id = payload.get("order_id")
-
-        if status == "paid":
-            # Извлекаем telegram_id из order_id, если он закодирован в формате "user_{telegram_id}_tid_{transaction_id}"
-            try:
-                telegram_id = int(order_id.split("_")[1])
-            except (IndexError, ValueError):
-                telegram_id = None
-
-            return {
-                "success": True,
-                "telegram_id": telegram_id,
-                "amount": float(payload.get("amount", 0)),
-                "txid": payload.get("uuid"),
-                "comment": "CryptoCloud payment success"
-            }
+        invoice_id = payload.get("order_id")
 
         return {
-            "success": False,
-            "error": f"Unhandled status: {status}"
+            "status": status,
+            "invoice_id": invoice_id,
         }

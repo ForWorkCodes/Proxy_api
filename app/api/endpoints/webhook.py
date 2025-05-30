@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Request, HTTPException, Form, Depends
-from app.factories.top_up_factory import TopUpStrategyFactory
+from fastapi import APIRouter, Request, Depends
 from app.orchestrators.webhook_orchestrator import WebhookOrchestrator
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_async_session
+from app.factories.top_up_factory import TopUpStrategyFactory
 import logging
 
 router = APIRouter()
@@ -35,31 +35,12 @@ async def nowpayments_webhook(request: Request, session: AsyncSession = Depends(
 @router.post("/webhook/cryptocloud/")
 async def cryptocloud_webhook(request: Request, session: AsyncSession = Depends(get_async_session)):
     try:
-        form = await request.form()
-        payload = dict(form)
-        logger.info(f"[WEBHOOK] CryptoCloud payload: {payload}")
+        strategy = TopUpStrategyFactory.get_strategy("cryptocloud")
+        data = await strategy.process_callback(request)
 
         orchestrator = WebhookOrchestrator(session)
-        result = await orchestrator.execute(payload)
+        result = await orchestrator.execute(data)
         return result
-
-        # Проверка, что необходимое поле есть
-        if "status" not in payload or "order_id" not in payload:
-            logger.warning("[WEBHOOK] Invalid payload from CryptoCloud")
-            raise HTTPException(status_code=400, detail="Invalid payload")
-
-        # Получаем стратегию
-        strategy = TopUpStrategyFactory.get_strategy("cryptocloud")
-
-        # Обрабатываем callback
-        callback_result = await strategy.process_callback(payload)
-
-        if not callback_result.get("success"):
-            logger.warning(f"[WEBHOOK] Callback handling failed: {callback_result.get('error')}")
-            return {"status": "error"}
-
-
-
     except Exception as e:
         logger.exception(f"[WEBHOOK ERROR] {e}")
         return {"status": "internal error"}
