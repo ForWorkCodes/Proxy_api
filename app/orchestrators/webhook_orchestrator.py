@@ -61,6 +61,6 @@ class WebhookOrchestrator:
                 transaction.id, "failed", "Top Up successful but we can't add money")
         else:
             await self.transaction_service.update_status(
-                transaction.id, "success", "Top Up successful. New balance: " + result_money["new_balance"])
+                transaction.id, "success", "Top Up successful. New balance: " + str(result_money["new_balance"]))
 
         return {"status": "ok"}
