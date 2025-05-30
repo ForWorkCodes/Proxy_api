@@ -14,3 +14,7 @@ class TopUpStrategy(ABC):
         Обработка входящего колбека от платёжного провайдера.
         """
         pass
+
+    @abstractmethod
+    def get_name(self) -> str:
+        pass

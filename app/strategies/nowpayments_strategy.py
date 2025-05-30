@@ -102,3 +102,6 @@ class NowPaymentsStrategy(TopUpStrategy):
             "success": False,
             "error": f"Unhandled status: {status}"
         }
+
+    def get_name(self) -> str:
+        return "newpayment"

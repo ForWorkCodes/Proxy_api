@@ -77,7 +77,7 @@ class TransactionService:
                 "error": "Transaction was not created"
             }
 
-    async def create_wait_top_up_transaction(self, user: User, amount: float, new_balance: float):
+    async def create_wait_top_up_transaction(self, user: User, amount: float, new_balance: float, provider_name: str):
         if not user or not user.balance:
             return {
                 "success": False,
@@ -89,6 +89,7 @@ class TransactionService:
             user_id=user.id,
             amount=amount,
             balance_after=new_balance,
+            provider=provider_name,
             type="topup",
             status="pending",
             comment=f"Top up by user {user.id}"

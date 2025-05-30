@@ -27,8 +27,12 @@ class TopUpOrchestrator:
             }
 
         new_balance = self.balance_service.check_plus_balance(user, amount)
+        strategy = TopUpStrategyFactory.get_strategy(provider_key)
+        provider_name = strategy.get_name()
 
-        transaction_status = await self.transaction_service.create_wait_top_up_transaction(user, amount, new_balance)
+        transaction_status = await self.transaction_service.create_wait_top_up_transaction(
+            user, amount, new_balance, provider_name)
+
         if not transaction_status["success"]:
             logger.error(
                 f"[TRANSACTION FAILED] Could not create pending transaction: {transaction_status.get('error')}")
@@ -37,7 +41,6 @@ class TopUpOrchestrator:
         transaction_id = transaction_status["transaction_id"]
         logger.info(f"[TRANSACTION CREATED] ID={transaction_id}, amount={amount}, new_balance={new_balance}")
 
-        strategy = TopUpStrategyFactory.get_strategy(provider_key)
         response = await strategy.generate_link(user, amount, transaction_id)
 
         if not response['success']:

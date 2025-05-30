@@ -86,3 +86,6 @@ class CryptoCloudStrategy(TopUpStrategy):
             "status": status,
             "invoice_id": invoice_id,
         }
+
+    def get_name(self) -> str:
+        return "cryptocloud"
