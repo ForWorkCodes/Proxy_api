@@ -80,7 +80,7 @@ class CryptoCloudStrategy(TopUpStrategy):
         logger.info(f"[WEBHOOK] CryptoCloud payload: {payload}")
 
         status = payload.get("status")
-        invoice_id = payload.get("order_id")
+        invoice_id = payload.get("invoice_id")
 
         return {
             "status": status,
