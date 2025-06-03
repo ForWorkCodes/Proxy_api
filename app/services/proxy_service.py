@@ -127,6 +127,21 @@ class ProxyService:
             version=REVERSE_PROXY_TYPE_MAPPING.get(str(item.version), "unknown")
         )
 
+    async def get_active_proxy_by_date(self, deadline: datetime) -> list[Proxy] | None:
+        stmt = select(Proxy).where(
+            Proxy.active,
+            Proxy.date_end < deadline
+        )
+
+        result = await self.session.execute(stmt)
+        proxies = result.scalars().all()
+        return proxies if proxies else None
+
+    async def deactivate_proxy_list(self, proxies: list[Proxy]):
+        for proxy in proxies:
+            proxy.active = False
+        await self.session.commit()
+
     async def get_proxy_by_telegram_ip_port(self, telegram_id: str, host: str, port: int) -> Proxy | None:
         stmt = (
             select(Proxy)
