@@ -38,3 +38,4 @@ The proxy server can be configured through the `config.py` file. You can set:
 - Required packages are listed in `requirements.txt`
 
 alembic revision --autogenerate -m "name of migration" 
+deactivation old proxy: 
