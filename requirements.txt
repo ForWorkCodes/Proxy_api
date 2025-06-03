@@ -11,5 +11,6 @@ pytest-asyncio==0.26.0
 openpyxl==3.1.5
 starlette==0.46.2
 python-multipart
+typer
 python-dotenv
 pydantic-settings

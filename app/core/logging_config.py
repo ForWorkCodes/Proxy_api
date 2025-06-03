@@ -2,8 +2,9 @@ import logging
 import os
 from datetime import datetime, timezone
 
-LOG_DIR = "/app/logs"
+LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
+
 
 def setup_logging():
     # Формат даты в имени файла
