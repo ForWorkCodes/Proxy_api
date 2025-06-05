@@ -35,3 +35,6 @@ class User(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         "Transaction", back_populates="owner", lazy="selectin"
         )
+    notifications: Mapped[List["Notification"]] = relationship(
+        "Notification", back_populates="owner", lazy="selectin"
+        )

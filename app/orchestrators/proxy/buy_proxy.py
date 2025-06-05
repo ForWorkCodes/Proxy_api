@@ -16,6 +16,7 @@ class BuyProxyOrchestrator:
         self.proxy_service = ProxyService(self.session)
 
     async def execute(self, request: ProxyBuyRequest):
+        test = False
         logger.info(
             f"[BUY START] Request received from telegram_id={request.telegram_id} for {request.quantity} proxies ({request.version}/{request.type}) for {request.days} days in {request.country}")
 
@@ -70,10 +71,34 @@ class BuyProxyOrchestrator:
         logger.info(f"[SUBTRACT OK] {price} deducted from user ID={user.id}")
 
         # Send request to the api
-        buying_status = await self.proxy_api.buy_proxy(
-            request.version, request.quantity,
-            request.days, request.country, request.type, request.telegram_id
-        )
+        if test:
+            buying_status = {
+                "success": True,
+                "data": {
+                    "country": "ru",
+                    "period": 1,
+                    "list": {
+                        "9999": {
+                            "ip": "proxy01.example.com",
+                            "host": "192.168.1.10",
+                            "port": 3128,
+                            "version": 4,
+                            "type": "http",
+                            "date": "2025-06-05 10:00:00",
+                            "date_end": "2025-06-06 20:00:00",
+                            "unixtime": 1749117600,
+                            "unixtime_end": 1749559600,
+                            "descr": "Test proxy #1",
+                            "active": True
+                        }
+                    }
+                }
+            }
+        else:
+            buying_status = await self.proxy_api.buy_proxy(
+                request.version, request.quantity,
+                request.days, request.country, request.type, request.telegram_id
+            )
 
         if not buying_status["success"] or not buying_status["data"]:
             comment = "Purchase failed: " + buying_status.get("error", "Unknown")

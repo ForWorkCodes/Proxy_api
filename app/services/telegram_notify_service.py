@@ -10,10 +10,10 @@ class TelegramNotifyService:
         self.endpoint = settings.TELEGRAM_NOTIFY_URL.rstrip("/") + "/notify"
         self.api_key = settings.INTERNAL_API_TOKEN
 
-    async def send_message(self, user_id: int, message: str) -> bool:
+    async def send_message(self, user_id: int, data: dict) -> bool:
         payload = {
             "telegram_id": user_id,
-            "text": message
+            "data": data
         }
         headers = {
             "Content-Type": "application/json",

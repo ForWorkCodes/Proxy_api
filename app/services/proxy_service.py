@@ -2,11 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy import select, and_
 from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse
+from app.models.notification import NotificationType
 from app.models.user import User
+from app.services.notification_service import NotificationService
 from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 import logging
 import os
@@ -33,6 +35,7 @@ proxy_critical_logger.propagate = False
 class ProxyService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.notification_service = NotificationService(session)
 
     async def create_list_proxy(self, user: User, transaction_id: int, data_from_api: dict):
         proxy_list = data_from_api.get("list", {})
@@ -92,7 +95,7 @@ class ProxyService:
             "proxies": proxies
         }
 
-    async def create_proxy(self, data: ProxyItemDB):
+    async def create_proxy(self, data: ProxyItemDB, notification=True):
         proxy = Proxy(
             user_id=data.user_id,
             proxy_id=data.proxy_id,
@@ -112,6 +115,20 @@ class ProxyService:
         )
         self.session.add(proxy)
         await self.session.commit()
+
+        # move to orchestrator
+        if notification:
+            expires_at = proxy.date_end
+            notify_at = expires_at - timedelta(hours=6)
+
+            payload = {
+                "type": NotificationType.proxy_expiring,
+                "proxy_id": proxy.id,
+                "host": data.host + ":" + str(data.port)
+            }
+
+            await self.notification_service.schedule_notification(
+                data.user_id, NotificationType.proxy_expiring, notify_at, payload)
 
         return proxy
 
