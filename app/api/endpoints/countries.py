@@ -6,6 +6,7 @@ from typing import Optional
 import logging
 import os
 from datetime import datetime
+from app.core.constants import PROXY_TYPE_MAPPING
 
 # Create logs directory if it doesn't exist
 os.makedirs('logs', exist_ok=True)
@@ -24,28 +25,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-PROXY_TYPE_MAPPING = {
-    "ipv4": "4",
-    "ipv6": "6",
-    "ipv4shared": "3"
-}
 
 @router.get("/countries")
-async def get_countries(type: Optional[str] = Query(None, description="Proxy type: ipv4, ipv6, or ipv4shared")):
-    logger.info(f"Received request for countries with type: {type}")
+async def get_countries(version: Optional[str] = Query(None, description="Proxy version: ipv4, ipv6, or ipv4shared")):
+    logger.info(f"Received request for countries with version: {version}")
     
-    cache_key = f"proxy:countries:{type if type else 'default'}"
+    cache_key = f"proxy:countries:{version if version else 'default'}"
     cached = await cache.get(cache_key)
     if cached:
-        logger.info(f"Cache hit for type: {type}")
+        logger.info(f"Cache hit for version: {version}")
         return cached
 
     params = {}
-    if type:
-        if type not in PROXY_TYPE_MAPPING:
-            logger.error(f"Invalid proxy type received: {type}")
-            raise HTTPException(status_code=400, detail=f"Invalid proxy type. Must be one of: {', '.join(PROXY_TYPE_MAPPING.keys())}")
-        params["version"] = PROXY_TYPE_MAPPING[type]
+    if version:
+        if version not in PROXY_TYPE_MAPPING:
+            logger.error(f"Invalid proxy version received: {version}")
+            raise HTTPException(status_code=400, detail=f"Invalid proxy version. Must be one of: {', '.join(PROXY_TYPE_MAPPING.keys())}")
+        params["version"] = PROXY_TYPE_MAPPING[version]
 
     api_url = f"{settings.PROXY_API_URL}/{settings.PROXY_API_KEY}/getcountry"
     logger.info(f"Making request to proxy API: {api_url} with params: {params}")
@@ -66,25 +62,26 @@ async def get_countries(type: Optional[str] = Query(None, description="Proxy typ
         raise HTTPException(status_code=400, detail=error_msg)
     
     await cache.set(cache_key, data['list'])
-    logger.info(f"Successfully cached and returning countries list for type: {type}")
+    logger.info(f"Successfully cached and returning countries list for version: {version}")
     return data['list']
+
 
 @router.get("/availability")
 async def check_availability(
-    type: str = Query(..., description="Proxy type: ipv4, ipv6, or ipv4shared"),
+    version: str = Query(..., description="Proxy version: ipv4, ipv6, or ipv4shared"),
     country: str = Query(..., description="2-letter country code"),
     quantity: int = Query(..., description="Requested quantity of proxies")
 ):
-    logger.info(f"Checking availability: type={type}, country={country}, quantity={quantity}")
+    logger.info(f"Checking availability: version={version}, country={country}, quantity={quantity}")
 
-    if type not in PROXY_TYPE_MAPPING:
-        logger.error(f"Invalid proxy type received: {type}")
-        raise HTTPException(status_code=400, detail=f"Invalid proxy type. Must be one of: {', '.join(PROXY_TYPE_MAPPING.keys())}")
+    if version not in PROXY_TYPE_MAPPING:
+        logger.error(f"Invalid proxy version received: {version}")
+        raise HTTPException(status_code=400, detail=f"Invalid proxy version. Must be one of: {', '.join(PROXY_TYPE_MAPPING.keys())}")
 
-    version = PROXY_TYPE_MAPPING[type]
+    version = PROXY_TYPE_MAPPING[version]
     api_url = f"{settings.PROXY_API_URL}/{settings.PROXY_API_KEY}/getcount"
     params = {"country": country.lower(), "version": version}
-    cache_key = f"proxy:availability:{type}:{country}"
+    cache_key = f"proxy:availability:{version}:{country}"
 
     cached = await cache.get(cache_key)
     if cached:
