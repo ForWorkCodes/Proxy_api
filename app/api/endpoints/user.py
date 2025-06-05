@@ -6,7 +6,7 @@ from app.core.db import get_async_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
-from app.services import UserService
+from app.services import UserService, BalanceService
 from app.orchestrators.top_up_orchestrator import TopUpOrchestrator
 from app.services.user_registration import upsert_user_with_balance
 import logging
@@ -68,15 +68,10 @@ async def get_balance(telegram_id: str, session: AsyncSession = Depends(get_asyn
     user_service = UserService(session)
     user = await user_service.get_user_by_telegram_id(telegram_id)
 
-    if not user or not user.balance:
-        return {
-            "success": False,
-            "status_code": 404,
-            "amount": 0,
-            "error": "User or balance not found"
-        }
+    balance_service = BalanceService(session)
+    result = await balance_service.get_balance(user)
 
-    return user.balance
+    return result
 
 
 @router.post("/get-link-topup")

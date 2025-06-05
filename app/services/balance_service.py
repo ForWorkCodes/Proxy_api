@@ -11,13 +11,15 @@ class BalanceService:
             return {
                 "success": False,
                 "status_code": 404,
+                "amount": 0,
                 "error": "User or balance not found"
             }
 
         return {
             "success": True,
             "status_code": 200,
-            "amount": user.balance.amount
+            "amount": user.balance.amount,
+            "error": ""
         }
 
     async def check_balance(self, user: User, need_amount) -> dict:
