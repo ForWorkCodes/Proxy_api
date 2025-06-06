@@ -27,7 +27,7 @@ async def get_proxy_price(
     )
     try:
         service = ProxyApiService(session)
-        data = await service.get_proxy_price(version, quantity, days, telegram_id)
+        data = await service.get_proxy_price(version, quantity, days, telegram_id+"-telegram")
         return data
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -34,7 +34,6 @@ def deactivate():
 
             expiring = await proxy_service.get_active_proxy_by_date(now)
             if not expiring:
-                logger.info("[CRON] No proxies found")
                 print("[CRON] No proxies found")
                 return
 

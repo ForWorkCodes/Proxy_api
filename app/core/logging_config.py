@@ -7,6 +7,14 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def setup_logging():
+    print("==========================================================")
+    print("Handlers:", logging.getLogger().handlers)
+    print("==========================================================")
+
+    logger = logging.getLogger()
+    if logger.handlers:
+        return
+
     # Формат даты в имени файла
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 

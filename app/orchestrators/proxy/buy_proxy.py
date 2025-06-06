@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.proxy import ProxyBuyRequest, ProxyBuyResponse
+from app.schemas.proxy import ProxyBuyRequest, ProxyBuyResponse, CreateProxyList
 from app.services import ProxyApiService, BalanceService, TransactionService, ProxyService, UserService
 import logging
 
@@ -18,17 +18,9 @@ class BuyProxyOrchestrator:
     async def execute(self, request: ProxyBuyRequest):
         test = False
         logger.info(
-            f"[BUY START] Request received from telegram_id={request.telegram_id} for {request.quantity} proxies ({request.version}/{request.type}) for {request.days} days in {request.country}")
-
-        # Getting actual price for proxy
-        data_price = await self.proxy_api.get_proxy_price(request.version, request.quantity,
-                                                          request.days, request.telegram_id)
-        if not data_price['success']:
-            logger.warning(f"[PRICE FAILED] Could not get price: {data_price.get('error')}")
-            return data_price
-
-        price = data_price["total_price"]
-        logger.info(f"[PRICE OK] Total price calculated: {price}")
+            f"[BUY START] Request received from telegram_id={request.telegram_id} for {request.quantity} "
+            f"proxies ({request.version}/{request.type}) for {request.days} days in {request.country}. "
+            f"auto_prolong is {request.auto_prolong}")
 
         # Getting current user
         user = await self.user_service.get_user_by_telegram_id(request.telegram_id)
@@ -41,6 +33,16 @@ class BuyProxyOrchestrator:
             }
 
         logger.info(f"[USER OK] User ID: {user.id}, Current balance: {user.balance.amount}")
+
+        # Getting actual price for proxy
+        data_price = await self.proxy_api.get_proxy_price(request.version, request.quantity,
+                                                          request.days, user.id)
+        if not data_price['success']:
+            logger.warning(f"[PRICE FAILED] Could not get price: {data_price.get('error')}")
+            return data_price
+
+        price = data_price["total_price"]
+        logger.info(f"[PRICE OK] Total price calculated: {price}")
 
         # Checking users balance for price
         have_money = await self.balance_service.check_balance(user, price)
@@ -116,7 +118,14 @@ class BuyProxyOrchestrator:
         logger.info(f"[BUYING OK] Proxy API returned {len(buying_status['data'].get('list', {}))} proxies")
 
         # Creating proxy for user
-        result = await self.proxy_service.create_list_proxy(user, transaction_id, buying_status["data"])
+        proxy_dto = CreateProxyList()
+        proxy_dto.user = user
+        proxy_dto.transaction_id = transaction_id
+        proxy_dto.data_from_api = buying_status["data"]
+        proxy_dto.provider = "px6"
+        proxy_dto.auto_prolong = request.auto_prolong
+
+        result = await self.proxy_service.create_list_proxy(proxy_dto)
         logger.info(f"[SAVE OK] proxies saved to DB for user ID={user.id}")
 
         # Update Transaction status

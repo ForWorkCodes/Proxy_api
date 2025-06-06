@@ -21,7 +21,8 @@ async def test_successful_buy_proxy():
         type="https",
         country="us",
         days=30,
-        quantity=1
+        quantity=1,
+        auto_prolong=False
     )
 
     with patch("app.orchestrators.proxy.buy_proxy.UserService") as mock_user_service, \
@@ -97,7 +98,8 @@ async def test_successful_buy_proxy():
             unixtime=1704067200,
             unixtime_end=1706745600,
             descr="desc",
-            active=True
+            active=True,
+            auto_prolong=False
         ))
         mock_proxy_service.return_value.create_list_proxy = AsyncMock(return_value={
             "success": True,

@@ -24,3 +24,6 @@ class Proxy(Base):
     unixtime_end: Mapped[int] = mapped_column(Integer, nullable=True)
     descr: Mapped[str] = mapped_column(String, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    auto_prolong: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=True)
+    days: Mapped[int] = mapped_column(Integer, nullable=True)

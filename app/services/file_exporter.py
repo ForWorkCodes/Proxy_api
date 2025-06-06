@@ -6,9 +6,10 @@ from app.models import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING, COUNTRY_TRANSLATIONS
 
 COLUMN_TITLES = {
-    "en": ["Version", "Ip:Port", "Type", "Country", "Date End"],
-    "ru": ["Версия", "Ip:Порт", "Тип", "Страна", "Дата окончания"],
+    "en": ["Version", "Ip:Port", "Type", "Country", "Date End", "Auto renewal"],
+    "ru": ["Версия", "Ip:Порт", "Тип", "Страна", "Дата окончания", "Автопродление"],
 }
+
 
 class FileExporter:
     def __init__(self, session: AsyncSession):
@@ -25,7 +26,8 @@ class FileExporter:
                     f"{proxy.host}:{proxy.port}",
                     proxy.type,
                     country,
-                    proxy.date_end.strftime("%Y-%m-%d %H:%M") if proxy.date_end else ""
+                    proxy.date_end.strftime("%Y-%m-%d %H:%M") if proxy.date_end else "",
+                    "✓" if proxy.auto_prolong else "✕"
                 ])
 
     def export_proxies_to_xls(self, filepath: str, proxies: List[Proxy], lang: str) -> None:
@@ -39,6 +41,7 @@ class FileExporter:
                 f"{proxy.host}:{proxy.port}",
                 proxy.type,
                 country,
-                proxy.date_end.strftime("%Y-%m-%d %H:%M") if proxy.date_end else ""
+                proxy.date_end.strftime("%Y-%m-%d %H:%M") if proxy.date_end else "",
+                "✓" if proxy.auto_prolong else "✕"
             ])
         wb.save(filepath)

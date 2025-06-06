@@ -1,14 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy import select, and_
-from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse
+from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse, CreateProxyList
 from app.models.notification import NotificationType
 from app.models.user import User
 from app.services.notification_service import NotificationService
 from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 import logging
 import os
@@ -37,18 +37,18 @@ class ProxyService:
         self.session = session
         self.notification_service = NotificationService(session)
 
-    async def create_list_proxy(self, user: User, transaction_id: int, data_from_api: dict):
-        proxy_list = data_from_api.get("list", {})
-        country = data_from_api.get("country")
+    async def create_list_proxy(self, data: CreateProxyList):
+        proxy_list = data.data_from_api.get("list", {})
+        country = data.data_from_api.get("country")
         proxies: List[ProxyItem] = []
 
         for proxy_id, proxy_data in proxy_list.items():
             try:
                 item = ProxyItemDB(
-                    user_id=user.id,
+                    user_id=data.user.id,
                     proxy_id=proxy_id,
                     ip=proxy_data["ip"],
-                    transaction_id=transaction_id,
+                    transaction_id=data.transaction_id,
                     host=proxy_data["host"],
                     port=proxy_data["port"],
                     version=proxy_data["version"],
@@ -59,10 +59,13 @@ class ProxyService:
                     unixtime=proxy_data["unixtime"],
                     unixtime_end=proxy_data["unixtime_end"],
                     descr=proxy_data.get("descr", ""),
-                    active=proxy_data["active"]
+                    active=proxy_data["active"],
+                    provider=data.provider,
+                    auto_prolong=data.auto_prolong,
+                    days=data.data_from_api.get("period")
                 )
 
-                await self.create_proxy(item)
+                await self.create_proxy(item, data.user.notification)
 
                 proxies.append(ProxyItem(
                     ip=proxy_data["ip"],
@@ -80,9 +83,9 @@ class ProxyService:
                 ))
             except Exception as e:
                 error_msg = {
-                    "user_id": user.id,
+                    "user_id": data.user.id,
                     "proxy_data": proxy_data,
-                    "transaction_id": transaction_id,
+                    "transaction_id": data.transaction_id,
                     "error": str(e)
                 }
                 proxy_critical_logger.error(f"[SAVE ERROR] Failed to save proxy: {error_msg}")
@@ -90,7 +93,7 @@ class ProxyService:
         return {
             "success": True,
             "quantity": len(proxy_list),
-            "days": data_from_api.get("period"),
+            "days": data.data_from_api.get("period"),
             "country": country,
             "proxies": proxies
         }
@@ -111,13 +114,16 @@ class ProxyService:
             unixtime=data.unixtime,
             unixtime_end=data.unixtime_end,
             descr=data.descr,
-            active=data.active
+            active=data.active,
+            provider=data.provider,
+            auto_prolong=data.auto_prolong,
+            days=data.days
         )
         self.session.add(proxy)
         await self.session.commit()
 
         # move to orchestrator
-        if notification:
+        if notification and not data.auto_prolong:
             expires_at = proxy.date_end
             notify_at = expires_at - timedelta(hours=6)
 
@@ -153,6 +159,22 @@ class ProxyService:
         result = await self.session.execute(stmt)
         proxies = result.scalars().all()
         return proxies if proxies else None
+
+    async def get_proxies_to_auto_prolong(self, deadline) -> list[Proxy] | None:
+        stmt = select(Proxy).where(
+            Proxy.active.is_(True),
+            Proxy.auto_prolong.is_(True),
+            Proxy.unixtime_end <= deadline
+        )
+
+        result = await self.session.execute(stmt)
+        proxies = result.scalars().all()
+        return proxies if proxies else None
+
+    async def update_expiring_date(self, proxy: Proxy, new_data: dict):
+        proxy.unixtime_end = int(new_data["unixtime_end"])
+        proxy.date_end = datetime.strptime(new_data["date_end"], "%Y-%m-%d %H:%M:%S")
+        await self.session.commit()
 
     async def deactivate_proxy_list(self, proxies: list[Proxy]):
         for proxy in proxies:

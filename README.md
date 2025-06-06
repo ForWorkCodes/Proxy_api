@@ -40,3 +40,4 @@ The proxy server can be configured through the `config.py` file. You can set:
 alembic revision --autogenerate -m "name of migration" 
 deactivation old proxy: python manage.py proxy-expiration deactivate 
 check almost expired proxies: python manage.py notification-checker check-expired 
+prolog proxy: python manage.py proxy-prolong prolong

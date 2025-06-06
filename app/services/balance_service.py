@@ -27,6 +27,7 @@ class BalanceService:
             return {
                 "success": False,
                 "status_code": 404,
+                "amount": 0,
                 "error": "User or balance not found"
             }
         else:
@@ -36,12 +37,14 @@ class BalanceService:
             return {
                 "success": False,
                 "status_code": 4001,
+                "amount": 0,
                 "error": "Insufficient balance"
             }
 
         return {
             "success": True,
             "status_code": 200,
+            "amount": balance.amount < need_amount,
             "error": ""
         }
 

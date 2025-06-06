@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import PROXY_TYPE_MAPPING
+from app.models import Proxy
 from app.core.config import settings
 from app.services.proxy_service import ProxyService
 import httpx
@@ -16,16 +17,19 @@ class ProxyApiService:
             "X-Internal-Token": settings.INTERNAL_API_TOKEN
         }
 
-    async def get_proxy_price(self, version: str, quantity: int, days: int, telegram_id: str) -> dict:
-        if version not in PROXY_TYPE_MAPPING:
-            logger.warning(f"Invalid proxy version received: {version}")
-            return {
-                "success": False,
-                "status_code": 400,
-                "error": "Invalid proxy version"
-            }
+    async def get_proxy_price(self, version: str, quantity: int, days: int, user_id: str, check_version: bool = True) -> dict:
+        if check_version:
+            if version not in PROXY_TYPE_MAPPING:
+                logger.warning(f"Invalid proxy version received: {version}")
+                return {
+                    "success": False,
+                    "status_code": 400,
+                    "error": "Invalid proxy version"
+                }
+            api_version = PROXY_TYPE_MAPPING[version]
+        else:
+            api_version = version
 
-        api_version = PROXY_TYPE_MAPPING[version]
         api_url = f"{settings.PROXY_API_URL}/{settings.PROXY_API_KEY}/getprice"
         params = {
             "version": api_version,
@@ -73,7 +77,7 @@ class ProxyApiService:
 
         logger.info(
             f"Returning quote: price={price_data['price']}, price_single={price_data['price_single']} "
-            f"for telegram_id={telegram_id}"
+            f"for user_id={user_id}"
         )
 
         total_price = round(float(price_data["price"]) * (1 + 30 / 100))
@@ -200,4 +204,41 @@ class ProxyApiService:
             "success": True,
             "status_code": 200,
             "proxy_status": check_data.get("proxy_status")
+        }
+
+    async def try_prolong_proxy(self, proxy: dict):
+        api_url = f"{settings.PROXY_API_URL}/{settings.PROXY_API_KEY}/prolong"
+        params = {
+            "ids": proxy["id"],
+            "period": proxy["period"]
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(api_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            except httpx.HTTPError as e:
+                logger.error(f"Proxy API error: {e}")
+                return {
+                    "success": False,
+                    "status_code": 502,
+                    "error": f"Proxy API error: {e}"
+                }
+
+        if data.get("status") != "yes":
+            if data.get("error_id") == 400:
+                print("Нет денег")
+                # TODO: сделать экстренное оповещение о недостаточном количестве денег
+
+            return {
+                "success": False,
+                "status_code": data.get("error_id"),
+                "error": data.get("error", "Unknown error")
+            }
+
+        return {
+            "success": True,
+            "status_code": 200,
+            "data": data
         }

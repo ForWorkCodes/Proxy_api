@@ -35,7 +35,8 @@ class NotificationService:
             payload = json.loads(notif.payload or '{}')
             payload["language"] = language
 
-            await self.telegram.send_message(notif.owner.telegram_id, payload)
+            if user.notification:
+                await self.telegram.send_message(notif.owner.telegram_id, payload)
 
             notif.sent = True
             notif.sent_at = now

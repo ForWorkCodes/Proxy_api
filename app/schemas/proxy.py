@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime
+from app.models.user import User
 
 
 class ProxyBuyRequest(BaseModel):
@@ -10,6 +11,7 @@ class ProxyBuyRequest(BaseModel):
     country: str
     days: int = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
+    auto_prolong: bool
 
 
 class ProxyItem(BaseModel):
@@ -25,6 +27,7 @@ class ProxyItem(BaseModel):
     unixtime_end: int
     descr: Optional[str] = None
     active: bool
+    auto_prolong: bool | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,6 +76,9 @@ class ProxyItemDB(BaseModel):
     unixtime_end: int
     descr: str
     active: bool
+    provider: str
+    auto_prolong: bool
+    days: int
 
 
 class ProxyGetRequest(BaseModel):
@@ -87,3 +93,11 @@ class ProxyCheckRequest(BaseModel):
 class ProxyLinkRequest(BaseModel):
     telegram_id: str
     file_type: str
+
+
+class CreateProxyList:
+    user: User
+    transaction_id: int
+    data_from_api: dict
+    provider: str
+    auto_prolong: bool
