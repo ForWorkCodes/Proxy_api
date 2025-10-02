@@ -86,6 +86,8 @@ class BuyProxyOrchestrator:
                             "port": 3128,
                             "version": 4,
                             "type": "http",
+                            "user": "rgd3245",
+                            "pass": "543ytgr",
                             "date": "2025-10-02 10:00:00",
                             "date_end": "2025-10-05 20:00:00",
                             "unixtime": 1749117600,

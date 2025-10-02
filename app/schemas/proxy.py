@@ -28,6 +28,8 @@ class ProxyItem(BaseModel):
     descr: Optional[str] = None
     active: bool
     auto_prolong: bool | None = None
+    login_proxy: Optional[str] = None
+    pass_proxy: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,6 +47,8 @@ class ProxyItemResponse(BaseModel):
     unixtime_end: int
     descr: Optional[str] = None
     active: bool
+    login_proxy: Optional[str] = None
+    pass_proxy: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -79,6 +83,8 @@ class ProxyItemDB(BaseModel):
     provider: str
     auto_prolong: bool
     days: int
+    login_proxy: str
+    pass_proxy: str
 
 
 class ProxyGetRequest(BaseModel):

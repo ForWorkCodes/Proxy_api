@@ -99,7 +99,9 @@ async def test_successful_buy_proxy():
             unixtime_end=1706745600,
             descr="desc",
             active=True,
-            auto_prolong=False
+            auto_prolong=False,
+            login_proxy="dsfgg23",
+            pass_proxy="23resfd"
         ))
         mock_proxy_service.return_value.create_list_proxy = AsyncMock(return_value={
             "success": True,

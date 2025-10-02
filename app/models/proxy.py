@@ -27,3 +27,5 @@ class Proxy(Base):
     auto_prolong: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     provider: Mapped[str] = mapped_column(String(50), nullable=True)
     days: Mapped[int] = mapped_column(Integer, nullable=True)
+    login_proxy: Mapped[str] = mapped_column(String(50), nullable=True)
+    pass_proxy: Mapped[str] = mapped_column(String(50), nullable=True)

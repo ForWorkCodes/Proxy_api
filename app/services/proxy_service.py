@@ -62,7 +62,9 @@ class ProxyService:
                     active=proxy_data["active"],
                     provider=data.provider,
                     auto_prolong=data.auto_prolong,
-                    days=data.data_from_api.get("period")
+                    days=data.data_from_api.get("period"),
+                    login_proxy=proxy_data["user"],
+                    pass_proxy=proxy_data["pass"]
                 )
 
                 await self.create_proxy(item, data.user.notification)
@@ -79,7 +81,9 @@ class ProxyService:
                     unixtime=proxy_data["unixtime"],
                     unixtime_end=proxy_data["unixtime_end"],
                     descr=proxy_data.get("descr", ""),
-                    active=proxy_data["active"]
+                    active=proxy_data["active"],
+                    login_proxy=proxy_data["user"],
+                    pass_proxy=proxy_data["pass"]
                 ))
             except Exception as e:
                 error_msg = {
@@ -117,7 +121,9 @@ class ProxyService:
             active=data.active,
             provider=data.provider,
             auto_prolong=data.auto_prolong,
-            days=data.days
+            days=data.days,
+            login_proxy=data.login_proxy,
+            pass_proxy=data.pass_proxy
         )
         self.session.add(proxy)
         await self.session.commit()
