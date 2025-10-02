@@ -5,3 +5,4 @@ from .proxy import Proxy
 from .balance import Balance
 from .transaction import Transaction
 from .notification import Notification
+from .currency_rate import CurrencyRate

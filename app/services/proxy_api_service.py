@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import PROXY_TYPE_MAPPING
-from app.models import Proxy
 from app.core.config import settings
 from app.services.proxy_service import ProxyService
+from app.services.currency_service import CurrencyService
 import httpx
 import logging
 
@@ -13,6 +13,7 @@ class ProxyApiService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.proxy_service = ProxyService(session)
+        self.currency_service = CurrencyService(session)
         self.headers = {
             "X-Internal-Token": settings.INTERNAL_API_TOKEN
         }
@@ -75,18 +76,24 @@ class ProxyApiService:
                 "error": price_data.get("error", "Unknown error")
             }
 
+        price_single_raw = round(float(price_data['price_single']) * (1 + 30 / 100), 2)
+        price_raw = float(price_data['price'])
+
+        price_single = await self.currency_service.convert_price(price_single_raw)
+        price = await self.currency_service.convert_price(price_raw)
+
         logger.info(
-            f"Returning quote: price={price_data['price']}, price_single={price_data['price_single']} "
+            f"Returning quote: price={str(price)}, price_single={str(price_single)} "
             f"for user_id={user_id}"
         )
 
-        total_price = round(float(price_data["price"]) * (1 + 30 / 100))
+        total_price = round(price * (1 + 30 / 100), 2)
 
         return {
             "success": True,
             "status_code": 200,
             "total_price": total_price,
-            "price_single": price_data["price_single"],
+            "price_single": price_single,
             "days": price_data["period"],
             "currency": "USD",
             "version": version,

@@ -41,3 +41,8 @@ alembic revision --autogenerate -m "name of migration"
 deactivation old proxy: python manage.py proxy-expiration deactivate 
 check almost expired proxies: python manage.py notification-checker check-expired 
 prolog proxy: python manage.py proxy-prolong prolong
+
+*/30 * * * * docker exec web-botapi-1 /usr/local/bin/python3 /app/manage.py proxy-prolong prolong >> /var/log/proxy_prolong.log 2>&1
+0 */2 * * * docker exec web-botapi-1 /usr/local/bin/python3 /app/manage.py proxy-expiration deactivate >> /var/log/proxy_expiration.log 2>&1
+0 */2 * * * docker exec web-botapi-1 /usr/local/bin/python3 /app/manage.py notification-checker check-expired >> /var/log/proxy_notification.log 2>&1
+0 * * * * flock -n /tmp/currency_rate.lock docker exec web-botapi-1 /usr/local/bin/python3 /app/manage.py currency-rate collect --run-once >> /var/log/currency-rate.log 2>&1

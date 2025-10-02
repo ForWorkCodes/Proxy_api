@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CryptoCloudStrategy(TopUpStrategy):
     def __init__(self):
         self.api_key = settings.CRYPTOCLOUD_API_KEY
@@ -17,7 +18,7 @@ class CryptoCloudStrategy(TopUpStrategy):
         payload = {
             "shop_id": self.shop_id,
             "amount": float(amount),
-            "currency": "RUB",
+            "currency": "USD",
             "order_id": f"user_{user.id}_tid_{transaction_id}"
         }
 
