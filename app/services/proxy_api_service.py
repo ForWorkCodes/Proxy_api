@@ -184,7 +184,15 @@ class ProxyApiService:
                 check_data = response.json()
                 logger.info(f"Received check proxy: {check_data}")
         except httpx.RequestError as e:
-            logger.error(f"Request error when connecting to proxy API: {e}")
+            req = getattr(e, "request", None)
+            logger.error(
+                "Request error when connecting to proxy API: %s | type=%s | url=%s | params=%s | cause=%r",
+                str(e) or repr(e),
+                e.__class__.__name__,
+                str(req.url) if req else api_url,
+                params,
+                getattr(e, "__cause__", None),
+            )
             return {
                 "success": False,
                 "status_code": 502,
