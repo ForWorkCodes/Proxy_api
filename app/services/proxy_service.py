@@ -144,6 +144,12 @@ class ProxyService:
 
         return proxy
 
+
+    async def cancel_proxy_prlong(self, user: User, address: str):
+        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active, Proxy.auto_prolong == True)
+        result = await self.session.execute(db)
+        # TODO: механизм перевода auto_prolong в False. Также изменение поиска с добавлением адреса. address содержит ip:port
+
     async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
         db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active)
         result = await self.session.execute(db)
