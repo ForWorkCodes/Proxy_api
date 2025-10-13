@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse, CreateProxyList
 from app.models.notification import NotificationType
 from app.models.user import User
@@ -9,12 +9,16 @@ from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional, Tuple
 import logging
 import os
+import ipaddress
 from logging.handlers import RotatingFileHandler
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+os.makedirs("logs", exist_ok=True)
 
 critical_handler = RotatingFileHandler(
     "logs/proxy_critical.log",
@@ -30,6 +34,12 @@ proxy_critical_logger = logging.getLogger("proxy_critical")
 proxy_critical_logger.setLevel(logging.ERROR)
 proxy_critical_logger.addHandler(critical_handler)
 proxy_critical_logger.propagate = False
+
+
+@dataclass
+class OperationResult:
+    success: bool
+    message: Optional[str] = None
 
 
 class ProxyService:
@@ -146,9 +156,101 @@ class ProxyService:
 
 
     async def cancel_proxy_prlong(self, user: User, address: str):
-        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active, Proxy.auto_prolong == True)
-        result = await self.session.execute(db)
-        # TODO: механизм перевода auto_prolong в False. Также изменение поиска с добавлением адреса. address содержит ip:port
+        host, port, is_ip = self._validate_proxy_address(address)
+
+        stmt = (
+            select(Proxy)
+            .where(
+                Proxy.user_id == user.id,
+                Proxy.active.is_(True),
+                Proxy.auto_prolong.is_(True),
+                Proxy.port == port,
+                Proxy.ip == host if is_ip else Proxy.host == host
+            )
+            .limit(1)
+        )
+
+        try:
+            result = await self.session.execute(stmt)
+            proxy = result.scalar_one_or_none()
+
+            if not proxy:
+                logger.info(
+                    "[CANCEL AUTO PROLONG] Proxy not found for user_id=%s, address=%s",
+                    user.id,
+                    address
+                )
+                return OperationResult(success=False, message="Proxy not found")
+
+            proxy.auto_prolong = False
+            await self.session.commit()
+
+            logger.info(
+                "[CANCEL AUTO PROLONG] Auto prolong disabled for proxy_id=%s, user_id=%s",
+                proxy.id,
+                user.id
+            )
+
+            return OperationResult(success=True)
+        except Exception as exc:
+            await self.session.rollback()
+            logger.exception(
+                "[CANCEL AUTO PROLONG] Failed to update proxy for user_id=%s, address=%s",
+                user.id,
+                address
+            )
+            return OperationResult(success=False, message=str(exc))
+
+    def _validate_proxy_address(self, address: str) -> Tuple[str, int, bool]:
+        address_parts = address.rsplit(":", 1)
+        if len(address_parts) != 2:
+            raise ValueError("Invalid proxy address format. Expected 'ip:port'.")
+
+        host_raw, port_raw = (part.strip() for part in address_parts)
+        if not host_raw:
+            raise ValueError("Proxy address must contain a host part.")
+
+        try:
+            port = int(port_raw)
+        except ValueError as exc:
+            raise ValueError("Proxy port must be a number.") from exc
+
+        if not (1 <= port <= 65535):
+            raise ValueError("Proxy port must be in range 1-65535.")
+
+        host = host_raw.lower()
+        if self._is_ipv4(host):
+            return host, port, True
+
+        if not self._is_allowed_domain(host):
+            raise ValueError("Proxy host contains invalid characters.")
+
+        return host, port, False
+
+    @staticmethod
+    def _is_ipv4(host: str) -> bool:
+        try:
+            ipaddress.IPv4Address(host)
+            return True
+        except ipaddress.AddressValueError:
+            return False
+
+    @staticmethod
+    def _is_allowed_domain(host: str) -> bool:
+        if len(host) > 253:
+            return False
+        if host.startswith("-") or host.endswith("-"):
+            return False
+        if ".." in host:
+            return False
+
+        labels = host.split(".")
+        if any(len(label) == 0 or len(label) > 63 for label in labels):
+            return False
+
+        allowed = set("abcdefghijklmnopqrstuvwxyz0123456789-")
+        return all(all(ch in allowed for ch in label) for label in labels)
+
 
     async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
         db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active)
