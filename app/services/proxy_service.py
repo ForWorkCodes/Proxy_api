@@ -173,7 +173,7 @@ class ProxyService:
                 Proxy.user_id == user.id,
                 Proxy.active.is_(True),
                 Proxy.auto_prolong.is_(True),
-                Proxy.ip == ip_address,
+                Proxy.host == ip_address,
                 Proxy.port == port
             )
             .limit(1)

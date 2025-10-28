@@ -137,7 +137,8 @@ async def cancel_proxy(
         if data.success:
             return {
                 "success": True,
-                "status_code": data.status_code
+                "status_code": data.status_code,
+                "error": ""
             }
 
         return {
