@@ -239,7 +239,7 @@ class ProxyService:
                     Proxy.auto_prolong.is_(False),
                     Proxy.auto_prolong.is_(None),
                 ),
-                Proxy.ip == ip_address,
+                Proxy.host == ip_address,
                 Proxy.port == port,
             )
             .limit(1)

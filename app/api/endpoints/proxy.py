@@ -152,7 +152,7 @@ async def cancel_proxy(
         raise HTTPException(status_code=502, detail="Price check failed")
 
 
-@router.post("/activate-proxy")
+@router.post("/enable-proxy")
 async def activate_proxy(
     request: ProxyCheckRequest,
     session: AsyncSession = Depends(get_async_session)
@@ -181,7 +181,8 @@ async def activate_proxy(
         if data.success:
             return {
                 "success": True,
-                "status_code": data.status_code
+                "status_code": data.status_code,
+                "error": ""
             }
 
         return {
