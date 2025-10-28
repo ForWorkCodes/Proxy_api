@@ -5,3 +5,4 @@ from .user_service import UserService
 from .proxy_service import ProxyService
 from .file_exporter import FileExporter
 from .notification_service import NotificationService
+from .system_notification_service import SystemNotificationService
