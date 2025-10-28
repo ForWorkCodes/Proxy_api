@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from app.schemas.proxy import ProxyItemDB, ProxyItem, ProxyItemResponse, CreateProxyList
 from app.models.notification import NotificationType
 from app.models.user import User
@@ -17,8 +17,11 @@ from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger(__name__)
 
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
 critical_handler = RotatingFileHandler(
-    "logs/proxy_critical.log",
+    os.path.join(LOG_DIR, "proxy_critical.log"),
     maxBytes=1_000_000,
     backupCount=5
 )
@@ -34,7 +37,7 @@ proxy_critical_logger.propagate = False
 
 
 @dataclass
-class CancelProxyResult:
+class AutoProlongUpdateResult:
     success: bool
     status_code: int
     error: str | None = None
@@ -153,19 +156,29 @@ class ProxyService:
         return proxy
 
 
-    async def cancel_proxy_prlong(self, user: User, address: str) -> CancelProxyResult:
+    def _parse_proxy_address(self, address: str) -> tuple[str, int] | None:
         try:
             ip_address, port_str = address.strip().split(":")
             port = int(port_str)
         except ValueError:
             logger.warning(
-                "Invalid proxy address format received for auto prolong cancellation: %s", address
+                "Invalid proxy address format received for auto prolong update: %s",
+                address,
             )
-            return CancelProxyResult(
+            return None
+
+        return ip_address, port
+
+    async def cancel_proxy_prlong(self, user: User, address: str) -> AutoProlongUpdateResult:
+        parsed = self._parse_proxy_address(address)
+        if parsed is None:
+            return AutoProlongUpdateResult(
                 success=False,
                 status_code=400,
-                error="Invalid address format. Use 'IP:PORT'"
+                error="Invalid address format. Use 'IP:PORT'",
             )
+
+        ip_address, port = parsed
 
         stmt = (
             select(Proxy)
@@ -188,7 +201,7 @@ class ProxyService:
                 user.id,
                 address,
             )
-            return CancelProxyResult(
+            return AutoProlongUpdateResult(
                 success=False,
                 status_code=404,
                 error="Proxy with auto prolong enabled not found"
@@ -204,7 +217,60 @@ class ProxyService:
             address,
         )
 
-        return CancelProxyResult(success=True, status_code=200)
+        return AutoProlongUpdateResult(success=True, status_code=200)
+
+    async def activate_proxy_prlong(self, user: User, address: str) -> AutoProlongUpdateResult:
+        parsed = self._parse_proxy_address(address)
+        if parsed is None:
+            return AutoProlongUpdateResult(
+                success=False,
+                status_code=400,
+                error="Invalid address format. Use 'IP:PORT'",
+            )
+
+        ip_address, port = parsed
+
+        stmt = (
+            select(Proxy)
+            .where(
+                Proxy.user_id == user.id,
+                Proxy.active.is_(True),
+                or_(
+                    Proxy.auto_prolong.is_(False),
+                    Proxy.auto_prolong.is_(None),
+                ),
+                Proxy.ip == ip_address,
+                Proxy.port == port,
+            )
+            .limit(1)
+        )
+
+        result = await self.session.execute(stmt)
+        proxy: Proxy | None = result.scalar_one_or_none()
+
+        if proxy is None:
+            logger.info(
+                "Proxy without auto prolong enabled not found for user_id=%s, address=%s",
+                user.id,
+                address,
+            )
+            return AutoProlongUpdateResult(
+                success=False,
+                status_code=404,
+                error="Proxy with auto prolong disabled not found",
+            )
+
+        proxy.auto_prolong = True
+        await self.session.commit()
+
+        logger.info(
+            "Auto prolong enabled for proxy_id=%s (user_id=%s, address=%s)",
+            proxy.id,
+            user.id,
+            address,
+        )
+
+        return AutoProlongUpdateResult(success=True, status_code=200)
 
     async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
         db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active)
