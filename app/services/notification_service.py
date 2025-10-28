@@ -184,15 +184,18 @@ class NotificationService:
     def _build_message_payload(self, notification: Notification, user: User) -> dict[str, Any]:
         payload_data = json.loads(notification.payload or "{}")
         language = user.language or "ru"
-        message = {
+
+        message: dict[str, Any] = {
             "type": notification.type.value,
             "language": language,
-            "data": payload_data,
-            "meta": {
-                "notification_id": notification.id,
-                "scheduled_at": notification.scheduled_at.isoformat(),
-            },
         }
+
+        # Ensure system controlled fields cannot be overridden by payload data.
+        for key in ("type", "language"):
+            payload_data.pop(key, None)
+
+        message.update(payload_data)
+
         return message
 
     def _mark_as_sent(self, notification: Notification, now: datetime) -> None:

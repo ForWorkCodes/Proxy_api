@@ -107,8 +107,8 @@ async def test_process_pending_sends_notifications(async_session: AsyncSession) 
     telegram_id, message = dummy.messages[0]
     assert telegram_id == user.telegram_id
     assert message["type"] == NotificationType.proxy_expiring.value
-    assert message["data"]["proxy_id"] == 2
     assert message["language"] == user.language
+    assert message["proxy_id"] == 2
 
     stmt = await async_session.execute(Notification.__table__.select())
     rows = stmt.fetchall()
