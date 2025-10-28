@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.services.proxy_service import ProxyService
 from app.services.system_notification_service import SystemNotificationService
 from app.services.currency_service import CurrencyService
+from app.models.notification import NotificationType
 import httpx
 import logging
 
