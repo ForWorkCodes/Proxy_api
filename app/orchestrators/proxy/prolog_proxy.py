@@ -2,7 +2,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from app.models.proxy import Proxy
 from app.models.user import User
-from app.services import ProxyApiService, BalanceService, TransactionService, ProxyService, UserService
+from app.models.notification import NotificationType
+from app.services import (
+    ProxyApiService,
+    BalanceService,
+    TransactionService,
+    ProxyService,
+    UserService,
+)
+from app.services.notification_service import NotificationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +24,7 @@ class PrologProxyOrchestrator:
         self.balance_service = BalanceService(self.session)
         self.transaction_service = TransactionService(self.session)
         self.proxy_service = ProxyService(self.session)
+        self.notification_service = NotificationService(self.session)
 
     async def execute(self):
         logger.info(f"[Prolog Proxy START]")
@@ -58,7 +67,13 @@ class PrologProxyOrchestrator:
         # Getting actual price for proxy
         price_info = await self.proxy_api.get_proxy_price(str(proxy.version), 1, proxy.days, user.id, False)
         if not price_info["success"]:
-            logger.warning(f"[Prolong PRICE FAILED] Proxy ID={proxy.id}, Error={price_info.get('error')}")
+            error_message = price_info.get("error", "Unknown error")
+            logger.warning(
+                "[Prolong PRICE FAILED] Proxy ID=%s, Error=%s",
+                proxy.id,
+                error_message,
+            )
+            await self._schedule_failure_notification(user, proxy, error_message)
             return False
 
         price = price_info["total_price"]
@@ -67,7 +82,13 @@ class PrologProxyOrchestrator:
         # Checking users balance for price
         balance_check = await self.balance_service.check_balance(user, price)
         if not balance_check["success"]:
-            logger.warning(f"[Prolog BALANCE FAIL] user_id={user.id}, Error={balance_check['error']}")
+            error_message = balance_check["error"]
+            logger.warning(
+                "[Prolog BALANCE FAIL] user_id=%s, Error=%s",
+                user.id,
+                error_message,
+            )
+            await self._schedule_failure_notification(user, proxy, error_message)
             return False
         logger.info(f"[Prolong BALANCE OK] User has enough balance")
 
@@ -77,7 +98,13 @@ class PrologProxyOrchestrator:
                                                                                      proxy.provider)
 
         if not transaction["success"]:
-            logger.error(f"[Prolong TRANSACTION FAIL] Proxy ID={proxy.id}, Error={transaction['error']}")
+            error_message = transaction["error"]
+            logger.error(
+                "[Prolong TRANSACTION FAIL] Proxy ID=%s, Error=%s",
+                proxy.id,
+                error_message,
+            )
+            await self._schedule_failure_notification(user, proxy, error_message)
             return False
 
         transaction_id = transaction["transaction_id"]
@@ -87,7 +114,12 @@ class PrologProxyOrchestrator:
         subtract_money = await self.balance_service.subtract_money(user, price)
         if not subtract_money["success"]:
             await self.transaction_service.update_status(transaction_id, "failed", subtract_money["error"])
-            logger.error(f"[Prolog SUBTRACT FAIL] Proxy ID={proxy.id}, Error={subtract_money['error']}")
+            logger.error(
+                "[Prolog SUBTRACT FAIL] Proxy ID=%s, Error=%s",
+                proxy.id,
+                subtract_money["error"],
+            )
+            await self._schedule_failure_notification(user, proxy, subtract_money["error"])
             return False
 
         logger.info(f"[Prolong SUBTRACT OK] User ID={user.id}, Amount={price}")
@@ -100,15 +132,29 @@ class PrologProxyOrchestrator:
         buying_status = await self.proxy_api.try_prolong_proxy(prolong_data)
         if not buying_status["success"] or not buying_status.get("data"):
             reason = buying_status.get("error", "Unknown error")
-            logger.error(f"[Prolong BUYING FAIL] Proxy ID={proxy.id}, Reason: {reason}")
+            logger.error(
+                "[Prolong BUYING FAIL] Proxy ID=%s, Reason: %s",
+                proxy.id,
+                reason,
+            )
             await self.transaction_service.update_status(transaction_id, "failed", reason)
 
             # Returning money
             new_balance = await self.balance_service.add_money(user, price)
             await self.transaction_service.create_refund_transaction(
-                user, price, new_balance["new_balance"], str(transaction_id))
+                user,
+                price,
+                new_balance["new_balance"],
+                str(transaction_id),
+            )
 
-            logger.info(f"[Prolong REFUND] Proxy ID={proxy.id}, Amount={price}, New Balance={new_balance['new_balance']}")
+            logger.info(
+                "[Prolong REFUND] Proxy ID=%s, Amount=%s, New Balance=%s",
+                proxy.id,
+                price,
+                new_balance["new_balance"],
+            )
+            await self._schedule_failure_notification(user, proxy, reason)
             return False
 
         logger.info(f"[Prolog BUYING OK] Proxy API returned {len(buying_status['data'].get('list', {}))} proxies")
@@ -117,10 +163,45 @@ class PrologProxyOrchestrator:
         response_proxy = buying_status['data'].get('list', {})
         cur_proxy = response_proxy[str(proxy.proxy_id)]
         await self.proxy_service.update_expiring_date(proxy, cur_proxy)
+        await self.session.refresh(proxy)
         logger.info(f"[Prolong UPDATE OK] Proxy ID={proxy.id}, User ID={user.id} - array={cur_proxy}")
+
+        await self._schedule_success_notification(user, proxy)
 
         # Update Transaction status
         await self.transaction_service.update_status(transaction_id, "completed", "Prolong complete")
         logger.info(f"[Prolong TRANSACTION COMPLETE] Transaction ID={transaction_id}")
 
         return True
+
+    async def _schedule_success_notification(self, user: User, proxy: Proxy) -> None:
+        payload = {
+            "proxy_id": proxy.id,
+            "host": f"{proxy.host}:{proxy.port}",
+            "provider": proxy.provider,
+            "days": proxy.days,
+            "expires_at": proxy.date_end.isoformat() if proxy.date_end else None,
+        }
+        await self.notification_service.schedule_notification(
+            user.id,
+            NotificationType.proxy_auto_prolong_success,
+            datetime.now(timezone.utc),
+            payload,
+            deduplicate=True,
+        )
+
+    async def _schedule_failure_notification(self, user: User, proxy: Proxy, reason: str) -> None:
+        payload = {
+            "proxy_id": proxy.id,
+            "host": f"{proxy.host}:{proxy.port}",
+            "provider": proxy.provider,
+            "days": proxy.days,
+            "reason": reason,
+        }
+        await self.notification_service.schedule_notification(
+            user.id,
+            NotificationType.proxy_auto_prolong_failed,
+            datetime.now(timezone.utc),
+            payload,
+            deduplicate=True,
+        )

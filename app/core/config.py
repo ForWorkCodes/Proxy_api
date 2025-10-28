@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     CRYPTOCLOUD_SHOP_ID: str = "***"
     INTERNAL_API_TOKEN: str = "super - secret - token"
     TELEGRAM_NOTIFY_URL: str = "http://"
+    TELEGRAM_ADMIN_IDS: list[str] = []
 
     model_config = SettingsConfigDict(
         env_file=".env",

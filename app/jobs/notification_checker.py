@@ -1,6 +1,6 @@
 import typer
 import asyncio
-from app.services.proxy_service import NotificationService
+from app.services.notification_service import NotificationService
 from app.core.db import get_async_session
 from datetime import datetime, timezone
 from app.core.logging_config import setup_logging

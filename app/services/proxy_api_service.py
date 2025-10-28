@@ -2,7 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import PROXY_TYPE_MAPPING
 from app.core.config import settings
 from app.services.proxy_service import ProxyService
+from app.services.system_notification_service import SystemNotificationService
 from app.services.currency_service import CurrencyService
+from app.models.notification import NotificationType
 import httpx
 import logging
 
@@ -17,6 +19,7 @@ class ProxyApiService:
         self.headers = {
             "X-Internal-Token": settings.INTERNAL_API_TOKEN
         }
+        self.system_notifications = SystemNotificationService()
 
     async def get_proxy_price(self, version: str, quantity: int, days: int, user_id: str, check_version: bool = True) -> dict:
         if check_version:
@@ -135,8 +138,19 @@ class ProxyApiService:
 
         if data.get("status") != "yes":
             if data.get("error_id") == 400:
-                print("Нет денег")
-                #TODO: сделать экстренное оповещение о недостаточном количестве денег
+                await self.system_notifications.notify_admins(
+                    NotificationType.admin_alert,
+                    {
+                        "reason": "proxy_purchase_insufficient_funds",
+                        "version": version,
+                        "quantity": quantity,
+                        "days": days,
+                        "country": country,
+                        "type": type_proxy,
+                        "requested_by": telegram_id,
+                        "details": data.get("error"),
+                    },
+                )
 
             return {
                 "success": False,

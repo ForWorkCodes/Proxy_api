@@ -145,13 +145,18 @@ class ProxyService:
             notify_at = expires_at - timedelta(hours=6)
 
             payload = {
-                "type": NotificationType.proxy_expiring,
                 "proxy_id": proxy.id,
-                "host": data.host + ":" + str(data.port)
+                "host": f"{data.host}:{data.port}",
+                "expires_at": expires_at.isoformat(),
             }
 
             await self.notification_service.schedule_notification(
-                data.user_id, NotificationType.proxy_expiring, notify_at, payload)
+                data.user_id,
+                NotificationType.proxy_expiring,
+                notify_at,
+                payload,
+                deduplicate=True,
+            )
 
         return proxy
 
