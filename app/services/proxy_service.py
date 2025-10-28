@@ -9,6 +9,7 @@ from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
 from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
 from typing import List
 import logging
 import os
@@ -30,6 +31,13 @@ proxy_critical_logger = logging.getLogger("proxy_critical")
 proxy_critical_logger.setLevel(logging.ERROR)
 proxy_critical_logger.addHandler(critical_handler)
 proxy_critical_logger.propagate = False
+
+
+@dataclass
+class CancelProxyResult:
+    success: bool
+    status_code: int
+    error: str | None = None
 
 
 class ProxyService:
@@ -145,10 +153,58 @@ class ProxyService:
         return proxy
 
 
-    async def cancel_proxy_prlong(self, user: User, address: str):
-        db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active, Proxy.auto_prolong == True)
-        result = await self.session.execute(db)
-        # TODO: механизм перевода auto_prolong в False. Также изменение поиска с добавлением адреса. address содержит ip:port
+    async def cancel_proxy_prlong(self, user: User, address: str) -> CancelProxyResult:
+        try:
+            ip_address, port_str = address.strip().split(":")
+            port = int(port_str)
+        except ValueError:
+            logger.warning(
+                "Invalid proxy address format received for auto prolong cancellation: %s", address
+            )
+            return CancelProxyResult(
+                success=False,
+                status_code=400,
+                error="Invalid address format. Use 'IP:PORT'"
+            )
+
+        stmt = (
+            select(Proxy)
+            .where(
+                Proxy.user_id == user.id,
+                Proxy.active.is_(True),
+                Proxy.auto_prolong.is_(True),
+                Proxy.ip == ip_address,
+                Proxy.port == port
+            )
+            .limit(1)
+        )
+
+        result = await self.session.execute(stmt)
+        proxy: Proxy | None = result.scalar_one_or_none()
+
+        if proxy is None:
+            logger.info(
+                "Proxy with auto prolong enabled not found for user_id=%s, address=%s",
+                user.id,
+                address,
+            )
+            return CancelProxyResult(
+                success=False,
+                status_code=404,
+                error="Proxy with auto prolong enabled not found"
+            )
+
+        proxy.auto_prolong = False
+        await self.session.commit()
+
+        logger.info(
+            "Auto prolong disabled for proxy_id=%s (user_id=%s, address=%s)",
+            proxy.id,
+            user.id,
+            address,
+        )
+
+        return CancelProxyResult(success=True, status_code=200)
 
     async def get_list_proxy_by_user(self, user: User) -> List[Proxy]:
         db = select(Proxy).where(Proxy.user_id == user.id, Proxy.active)

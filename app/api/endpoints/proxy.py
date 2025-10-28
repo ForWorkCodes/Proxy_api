@@ -137,14 +137,14 @@ async def cancel_proxy(
         if data.success:
             return {
                 "success": True,
-                "status_code": 200
+                "status_code": data.status_code
             }
-        else:
-            return {
-                "success": False,
-                "status_code": 404,
-                "error": "Updating failed"
-            }
+
+        return {
+            "success": False,
+            "status_code": data.status_code,
+            "error": data.error or "Updating failed"
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except httpx.HTTPError as e:
