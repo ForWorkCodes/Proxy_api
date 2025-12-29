@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-LOG_DIR = "logs"
+LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 
