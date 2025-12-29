@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from sqlalchemy import String, Integer, Boolean, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Boolean, DateTime
 from datetime import datetime, timezone
 from app.core.sync_db import Base
 from sqlalchemy.orm import relationship
 from typing import List, Optional
+
 
 class User(Base):
     __tablename__ = "users"
@@ -19,22 +20,38 @@ class User(Base):
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.now(timezone.utc)
-        )
+        default=datetime.now(timezone.utc),
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc)
-        )
+        onupdate=datetime.now(timezone.utc),
+    )
     proxies: Mapped[List["Proxy"]] = relationship(
-        "Proxy", back_populates="owner", lazy="selectin"
-        )
+        "Proxy",
+        back_populates="owner",
+        lazy="selectin",
+    )
     balance: Mapped[Optional["Balance"]] = relationship(
-        "Balance", back_populates="owner", uselist=False, cascade="all, delete-orphan", lazy="selectin"
-        )
+        "Balance",
+        back_populates="owner",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     transactions: Mapped[List["Transaction"]] = relationship(
-        "Transaction", back_populates="owner", lazy="selectin"
-        )
+        "Transaction",
+        back_populates="owner",
+        lazy="selectin",
+    )
     notifications: Mapped[List["Notification"]] = relationship(
-        "Notification", back_populates="owner", lazy="selectin"
-        )
+        "Notification",
+        back_populates="owner",
+        lazy="selectin",
+    )
+    admin_record: Mapped[Optional["AdminUser"]] = relationship(
+        "AdminUser",
+        back_populates="user",
+        uselist=False,
+        lazy="selectin",
+    )

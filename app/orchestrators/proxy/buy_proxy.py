@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta
 from app.schemas.proxy import ProxyBuyRequest, ProxyBuyResponse, CreateProxyList
 from app.services import ProxyApiService, BalanceService, TransactionService, ProxyService, UserService
 import logging
@@ -16,7 +17,7 @@ class BuyProxyOrchestrator:
         self.proxy_service = ProxyService(self.session)
 
     async def execute(self, request: ProxyBuyRequest):
-        test = False
+        test = True
         logger.info(
             f"[BUY START] Request received from telegram_id={request.telegram_id} for {request.quantity} "
             f"proxies ({request.version}/{request.type}) for {request.days} days in {request.country}. "
@@ -74,6 +75,8 @@ class BuyProxyOrchestrator:
 
         # Send request to the api
         if test:
+            now = datetime.utcnow()
+            end = now + timedelta(minutes=5)
             buying_status = {
                 "success": True,
                 "data": {
@@ -88,10 +91,10 @@ class BuyProxyOrchestrator:
                             "type": "http",
                             "user": "rgd3245",
                             "pass": "543ytgr",
-                            "date": "2025-10-02 10:00:00",
-                            "date_end": "2025-10-05 20:00:00",
-                            "unixtime": 1749117600,
-                            "unixtime_end": 1749559600,
+                            "date": now.strftime("%Y-%m-%d %H:%M:%S"),
+                            "date_end": end.strftime("%Y-%m-%d %H:%M:%S"),
+                            "unixtime": int(now.timestamp()),
+                            "unixtime_end": int(end.timestamp()),
                             "descr": "Test proxy #1",
                             "active": True
                         }

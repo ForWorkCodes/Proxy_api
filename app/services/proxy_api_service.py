@@ -19,7 +19,7 @@ class ProxyApiService:
         self.headers = {
             "X-Internal-Token": settings.INTERNAL_API_TOKEN
         }
-        self.system_notifications = SystemNotificationService()
+        self.system_notifications = SystemNotificationService(session=session)
 
     async def get_proxy_price(self, version: str, quantity: int, days: int, user_id: str, check_version: bool = True) -> dict:
         if check_version:

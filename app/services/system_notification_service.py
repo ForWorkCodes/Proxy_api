@@ -1,8 +1,13 @@
 import logging
-from typing import Any
+from typing import Any, Iterable
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.admin import AdminUser
 from app.models.notification import NotificationType
+from app.models.user import User
 from app.services.telegram_notify_service import TelegramNotifyService
 
 logger = logging.getLogger(__name__)
@@ -13,10 +18,31 @@ class SystemNotificationService:
 
     def __init__(
         self,
+        session: AsyncSession | None = None,
         telegram_service: TelegramNotifyService | None = None,
     ) -> None:
+        self.session = session
         self.telegram = telegram_service or TelegramNotifyService()
-        self._admin_ids = [admin for admin in settings.TELEGRAM_ADMIN_IDS if admin]
+
+    async def _get_admin_ids(self) -> list[int]:
+        """Return list of admin telegram IDs from DB or settings."""
+
+        if self.session is not None:
+            stmt = (
+                select(User.telegram_id)
+                .join(AdminUser, AdminUser.user_id == User.id)
+                .where(
+                    AdminUser.active.is_(True),
+                    User.telegram_id.is_not(None),
+                )
+            )
+            result = await self.session.execute(stmt)
+            rows: Iterable[tuple[int]] = result.all()
+            admin_ids = [row[0] for row in rows if row[0]]
+            if admin_ids:
+                return admin_ids
+
+        return [admin for admin in settings.TELEGRAM_ADMIN_IDS if admin]
 
     async def notify_admins(
         self,
@@ -27,8 +53,10 @@ class SystemNotificationService:
     ) -> None:
         """Send an alert message to configured administrators."""
 
-        if not self._admin_ids:
-            logger.warning("Admin notification skipped: TELEGRAM_ADMIN_IDS is empty")
+        admin_ids = await self._get_admin_ids()
+
+        if not admin_ids:
+            logger.warning("Admin notification skipped: no admin recipients configured")
             return
 
         message = {
@@ -37,7 +65,7 @@ class SystemNotificationService:
             "data": payload,
         }
 
-        for admin_id in self._admin_ids:
+        for admin_id in admin_ids:
             success = await self.telegram.send_message(admin_id, message)
             if not success:
                 logger.error(

@@ -11,6 +11,8 @@ from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.services.telegram_notify_service import TelegramNotifyService
 from app.services.user_service import UserService
+from app.services.system_notification_service import SystemNotificationService
+from app.core.logging_config import log_to_file
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class NotificationService:
         self.session = session
         self.telegram = telegram_service or TelegramNotifyService()
         self.user_service = UserService(session)
+        self.system_notifications = SystemNotificationService(session=session)
 
     async def process_pending(self, limit: int | None = None) -> int:
         """Deliver notifications scheduled for the current moment.
@@ -42,7 +45,7 @@ class NotificationService:
             .options(selectinload(Notification.owner))
             .where(
                 Notification.scheduled_at <= now,
-                Notification.sent.is_(False),
+                Notification.sent.is_(False)
             )
             .order_by(Notification.scheduled_at, Notification.id)
         )
@@ -57,6 +60,12 @@ class NotificationService:
 
         for notification in notifications:
             user = await self._resolve_user(notification)
+
+            log_to_file(
+                "notification_checker_debug.log",
+                "[CRON DEBUG] ID is " + str(notification.id),
+                level=logging.DEBUG,
+            )
 
             if not user:
                 logger.warning(
@@ -92,11 +101,17 @@ class NotificationService:
                     user.telegram_id,
                     message_payload,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.exception(
                     "Unexpected error while sending notification %s to user_id=%s",
                     notification.id,
                     notification.user_id,
+                )
+                await self._notify_admin_about_failure(
+                    notification,
+                    user,
+                    error=str(exc),
+                    phase="exception",
                 )
                 continue
 
@@ -108,6 +123,12 @@ class NotificationService:
                     "Telegram gateway rejected notification %s for user_id=%s",
                     notification.id,
                     notification.user_id,
+                )
+                await self._notify_admin_about_failure(
+                    notification,
+                    user,
+                    error="telegram_gateway_rejected",
+                    phase="rejected",
                 )
 
         if notifications:
@@ -159,6 +180,7 @@ class NotificationService:
             type=note_type,
             scheduled_at=scheduled_at,
             payload=payload_json,
+            sent_at=scheduled_at,
             sent=False,
         )
 
@@ -202,6 +224,37 @@ class NotificationService:
         notification.sent = True
         notification.sent_at = now
         self.session.add(notification)
+
+    async def _notify_admin_about_failure(
+        self,
+        notification: Notification,
+        user: User | None,
+        *,
+        error: str,
+        phase: str,
+    ) -> None:
+        if self.system_notifications is None:
+            return
+
+        payload: dict[str, Any] = {
+            "reason": "notification_delivery_failed",
+            "phase": phase,
+            "notification_id": notification.id,
+            "user_id": user.id if user is not None else notification.user_id,
+            "user_telegram_id": user.telegram_id if user and user.telegram_id else None,
+            "notification_type": notification.type.value,
+            "message": error,
+        }
+
+        language = "ru"
+        if user and user.language:
+            language = user.language
+
+        await self.system_notifications.notify_admins(
+            NotificationType.admin_alert,
+            payload,
+            language=language,
+        )
 
     @staticmethod
     def _serialize_payload(payload: dict[str, Any] | None) -> str:

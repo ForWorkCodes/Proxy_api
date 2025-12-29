@@ -8,7 +8,8 @@ from app.services.notification_service import NotificationService
 from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
-from datetime import datetime, timedelta, timezone
+from app.services.user_service import UserService
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import List
 import logging
@@ -46,6 +47,7 @@ class AutoProlongUpdateResult:
 class ProxyService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.user_service = UserService(session)
         self.notification_service = NotificationService(session)
 
     async def create_list_proxy(self, data: CreateProxyList):
@@ -139,7 +141,6 @@ class ProxyService:
         self.session.add(proxy)
         await self.session.commit()
 
-        # move to orchestrator
         if notification and not data.auto_prolong:
             expires_at = proxy.date_end
             notify_at = expires_at - timedelta(hours=6)
@@ -318,6 +319,25 @@ class ProxyService:
     async def deactivate_proxy_list(self, proxies: list[Proxy]):
         for proxy in proxies:
             proxy.active = False
+
+            user = await self.user_service.get_user_by_id(proxy.user_id)
+            if user.notification:
+                expires_at = proxy.date_end
+
+                payload = {
+                    "proxy_id": proxy.id,
+                    "host": f"{proxy.host}:{proxy.port}",
+                    "expires_at": expires_at.isoformat(),
+                }
+
+                await self.notification_service.schedule_notification(
+                    proxy.user_id,
+                    NotificationType.proxy_expired,
+                    expires_at,
+                    payload,
+                    deduplicate=True,
+                )
+
         await self.session.commit()
 
     async def get_proxy_by_telegram_ip_port(self, telegram_id: str, host: str, port: int) -> Proxy | None:
