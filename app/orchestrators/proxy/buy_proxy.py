@@ -17,7 +17,7 @@ class BuyProxyOrchestrator:
         self.proxy_service = ProxyService(self.session)
 
     async def execute(self, request: ProxyBuyRequest):
-        test = True
+        test = False
         logger.info(
             f"[BUY START] Request received from telegram_id={request.telegram_id} for {request.quantity} "
             f"proxies ({request.version}/{request.type}) for {request.days} days in {request.country}. "
