@@ -128,6 +128,7 @@ class ProxyApiService:
                 response = await client.get(api_url, params=params)
                 response.raise_for_status()
                 data = response.json()
+                logger.info(f"Proxy API data: {data}")
             except httpx.HTTPError as e:
                 logger.error(f"Proxy API error: {e}")
                 return {
