@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     CRYPTO_API_KEY_NOW_PAY: str = "***"
     CRYPTOCLOUD_API_KEY: str = "***"
     CRYPTOCLOUD_SHOP_ID: str = "***"
+    CRYPTOCLOUD_SECRET: str = "***"
     INTERNAL_API_TOKEN: str = "super - secret - token"
     TELEGRAM_NOTIFY_URL: str = "http://"
     TELEGRAM_ADMIN_IDS: list[str] = []

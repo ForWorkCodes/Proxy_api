@@ -137,20 +137,19 @@ class ProxyApiService:
                 }
 
         if data.get("status") != "yes":
-            if data.get("error_id") == 400:
-                await self.system_notifications.notify_admins(
-                    NotificationType.admin_alert,
-                    {
-                        "reason": "proxy_purchase_insufficient_funds",
-                        "version": version,
-                        "quantity": quantity,
-                        "days": days,
-                        "country": country,
-                        "type": type_proxy,
-                        "requested_by": telegram_id,
-                        "details": data.get("error"),
-                    },
-                )
+            await self.system_notifications.notify_admins(
+                NotificationType.admin_alert,
+                {
+                    "reason": "proxy_purchase_insufficient_funds",
+                    "version": version,
+                    "quantity": quantity,
+                    "days": days,
+                    "country": country,
+                    "type": type_proxy,
+                    "requested_by": telegram_id,
+                    "details": data.get("error"),
+                },
+            )
 
             return {
                 "success": False,
