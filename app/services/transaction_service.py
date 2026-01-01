@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.transaction import Transaction
 from app.services import BalanceService
 from app.models.user import User
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 
 class TransactionService:
@@ -165,3 +165,16 @@ class TransactionService:
         transaction = raw.scalar_one_or_none()
 
         return transaction
+
+    async def take_pending_by_external_id(self, external_id: str) -> dict | None:
+        stmt = (
+            update(Transaction)
+            .where(Transaction.external_id == external_id, Transaction.status == "pending")
+            .values(status="processing")
+            .returning(Transaction.id, Transaction.user_id, Transaction.amount)
+        )
+        row = (await self.session.execute(stmt)).first()
+        await self.session.commit()
+        if not row:
+            return None
+        return {"id": row.id, "user_id": row.user_id, "amount": float(row.amount), 'status': row.status}

@@ -15,27 +15,35 @@ class WebhookOrchestrator:
         self.transaction_service = TransactionService(session)
 
     async def execute(self, data: dict):
-        if data["error"]:
-            return {"status": "error", "error": data["error"]}
+        error = data.get("error")
+        if error:
+            return {"status": "error", "error": error}
 
         external_id = data["invoice_id"]
-        transaction = await self.transaction_service.get_transaction_by_external_id(str(external_id))
+        transaction = await self.transaction_service.take_pending_by_external_id(str(external_id))
+
         if not transaction:
-            logger.error(
-                f"[TRANSACTION FAILED] Could not found transaction by external_id: {external_id}")
-            return {"status": "error"}
+            existing = await self.transaction_service.get_transaction_by_external_id(str(external_id))
+            if not existing:
+                logger.error(f"[TRANSACTION FAILED] Not found by external_id: {external_id}")
+                return {"status": "error", "error": "transaction not found"}
+
+            if existing.status in ("processing", "success"):
+                return {"status": "ok"}
+
+            return {"status": "error", "error": f"invalid state: {existing.status}"}
 
         logger.info(
                 f"[TRANSACTION INFO] For TopUp by external_id: {external_id}. "
-                f"Where transaction.id = {transaction.id} and data[status]={data['status']}")
+                f"Where transaction.id = {transaction['id']} and data[status]={data['status']}")
 
-        if data["status"] == "failed" and transaction.status != "failed":
-            await self.transaction_service.update_status(transaction.id, "failed", "Top Up failed")
+        if data["status"] == "failed" and transaction['status'] != "failed":
+            await self.transaction_service.update_status(transaction['id'], "failed", "Top Up failed")
             logger.error(
                 f"[TRANSACTION FAILED] Status for transaction is failed by external_id: {external_id}")
             return {"status": "error"}
-        elif data["status"] == "cancelled" and transaction.status != "cancelled":
-            await self.transaction_service.update_status(transaction.id, "cancelled", "Top Up cancelled")
+        elif data["status"] == "cancelled" and transaction['status'] != "cancelled":
+            await self.transaction_service.update_status(transaction['id'], "cancelled", "Top Up cancelled")
             logger.error(
                 f"[TRANSACTION FAILED] Status for transaction is cancelled by external_id: {external_id}")
             return {"status": "error"}
@@ -44,26 +52,26 @@ class WebhookOrchestrator:
             logger.error(
                 f"[TRANSACTION FAILED] Status for transaction is not success by external_id: {external_id}")
             return {"status": "error"}
-        if transaction.status == "success":
+        if transaction['status'] == "success":
             logger.error(
                 f"[TRANSACTION FAILED] Status for local transaction is success by external_id: {external_id}")
             return {"status": "error"}
 
-        user_id = transaction.user_id
+        user_id = transaction['user_id']
         user = await self.user_service.get_user_by_id(user_id)
 
         if not user:
             logger.error(
                 f"[TRANSACTION FAILED] Could not found user for transaction external_id: {external_id}")
-            await self.transaction_service.update_status(transaction.id, "failed", "Can't found user: " + user_id)
+            await self.transaction_service.update_status(transaction['id'], "failed", "Can't found user: " + user_id)
             return {"status": "error"}
 
-        result_money = await self.balance_service.add_money(user, float(transaction.amount))
+        result_money = await self.balance_service.add_money(user, float(transaction['amount']))
         if not result_money["success"]:
             await self.transaction_service.update_status(
-                transaction.id, "failed", "Top Up successful but we can't add money")
+                transaction['id'], "failed", "Top Up successful but we can't add money")
         else:
             await self.transaction_service.update_status(
-                transaction.id, "success", "Top Up successful. New balance: " + str(result_money["new_balance"]))
+                transaction['id'], "success", "Top Up successful. New balance: " + str(result_money["new_balance"]))
 
         return {"status": "ok"}
