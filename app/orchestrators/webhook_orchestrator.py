@@ -15,6 +15,9 @@ class WebhookOrchestrator:
         self.transaction_service = TransactionService(session)
 
     async def execute(self, data: dict):
+        if data["error"]:
+            return {"status": "error", "error": data["error"]}
+
         external_id = data["invoice_id"]
         transaction = await self.transaction_service.get_transaction_by_external_id(str(external_id))
         if not transaction:
