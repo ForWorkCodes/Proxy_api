@@ -171,7 +171,7 @@ class TransactionService:
             update(Transaction)
             .where(Transaction.external_id == external_id, Transaction.status == "pending")
             .values(status="processing")
-            .returning(Transaction.id, Transaction.user_id, Transaction.amount)
+            .returning(Transaction.id, Transaction.user_id, Transaction.amount, Transaction.status)
         )
         row = (await self.session.execute(stmt)).first()
         await self.session.commit()
