@@ -96,13 +96,19 @@ async def test_activate_proxy_prlong_enables_auto_prolong(async_session: AsyncSe
     user = await _create_user(async_session)
     proxy = await _create_proxy(async_session, user.id, "10.0.0.1", 3128, auto_prolong=False)
 
+    print("USER:", user.id, user.telegram_id)
+    print("PROXY BEFORE:", proxy.ip, proxy.port, "auto_prolong=", proxy.auto_prolong)
+
     service = ProxyService(async_session)
     result = await service.activate_proxy_prlong(user, "10.0.0.1:3128")
 
-    assert result.success is True
-    assert result.status_code == 200
+    print("SERVICE RESULT:", result)
 
     await async_session.refresh(proxy)
+    print("PROXY AFTER:", proxy.ip, proxy.port, "auto_prolong=", proxy.auto_prolong)
+
+    assert result.success is True
+    assert result.status_code == 200
     assert proxy.auto_prolong is True
 
 
@@ -137,11 +143,25 @@ async def test_cancel_proxy_prlong_disables_auto_prolong(async_session: AsyncSes
 async def test_create_proxy_schedules_notification_when_no_auto_prolong(
     async_session: AsyncSession,
 ):
+    print("\n=== TEST: create_proxy schedules notification when auto_prolong = False ===")
+
     user = await _create_user(async_session)
+    print("USER CREATED:")
+    print("  id =", user.id)
+    print("  telegram_id =", user.telegram_id)
+
     service = ProxyService(async_session)
+    print("ProxyService initialized")
+
     data = _build_proxy_item(user.id, auto_prolong=False)
+    print("PROXY ITEM BUILD:")
+    print("  proxy_id =", data.proxy_id)
+    print("  ip:port =", f"{data.ip}:{data.port}")
+    print("  auto_prolong =", data.auto_prolong)
+    print("  date_end =", data.date_end)
 
     await service.create_proxy(data, notification=True)
+    print("create_proxy() called with notification=True")
 
     result = await async_session.execute(
         Notification.__table__.select().where(
@@ -149,6 +169,14 @@ async def test_create_proxy_schedules_notification_when_no_auto_prolong(
         )
     )
     rows = result.fetchall()
+
+    print("NOTIFICATIONS FOUND:", len(rows))
+    for i, row in enumerate(rows, start=1):
+        print(f"  #{i}")
+        print("    user_id =", row.user_id)
+        print("    type =", row.type)
+        print("    scheduled_at =", getattr(row, "scheduled_at", None))
+
     assert len(rows) == 1
     assert rows[0].user_id == user.id
 
