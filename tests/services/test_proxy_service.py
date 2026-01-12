@@ -1,11 +1,15 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from app.core.sync_db import Base
+from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.models.proxy import Proxy
+from app.schemas.proxy import ProxyItemDB
 from app.services.proxy_service import ProxyService
 
 
@@ -61,6 +65,32 @@ async def _create_proxy(
     return proxy
 
 
+def _build_proxy_item(user_id: int, *, auto_prolong: bool) -> ProxyItemDB:
+    now = datetime.now(timezone.utc)
+    return ProxyItemDB(
+        user_id=user_id,
+        proxy_id="proxy-1",
+        ip="10.0.0.10",
+        transaction_id=123,
+        host="10.0.0.10",
+        port=3128,
+        version=4,
+        type="http",
+        country="US",
+        date=now,
+        date_end=now + timedelta(days=1),
+        unixtime=int(now.timestamp()),
+        unixtime_end=int((now + timedelta(days=1)).timestamp()),
+        descr="test proxy",
+        active=True,
+        provider="provider",
+        auto_prolong=auto_prolong,
+        days=1,
+        login_proxy="user",
+        pass_proxy="pass",
+    )
+
+
 @pytest.mark.asyncio
 async def test_activate_proxy_prlong_enables_auto_prolong(async_session: AsyncSession):
     user = await _create_user(async_session)
@@ -101,3 +131,38 @@ async def test_cancel_proxy_prlong_disables_auto_prolong(async_session: AsyncSes
 
     await async_session.refresh(proxy)
     assert proxy.auto_prolong is False
+
+
+@pytest.mark.asyncio
+async def test_create_proxy_schedules_notification_when_no_auto_prolong(
+    async_session: AsyncSession,
+):
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+    data = _build_proxy_item(user.id, auto_prolong=False)
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(
+        Notification.__table__.select().where(
+            Notification.type == NotificationType.proxy_expiring
+        )
+    )
+    rows = result.fetchall()
+    assert len(rows) == 1
+    assert rows[0].user_id == user.id
+
+
+@pytest.mark.asyncio
+async def test_create_proxy_skips_notification_when_auto_prolong_enabled(
+    async_session: AsyncSession,
+):
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+    data = _build_proxy_item(user.id, auto_prolong=True)
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(Notification.__table__.select())
+    rows = result.fetchall()
+    assert rows == []
