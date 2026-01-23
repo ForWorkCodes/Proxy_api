@@ -9,7 +9,7 @@ from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
 from app.services.file_exporter import FileExporter
 from app.services.user_service import UserService
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from typing import List
 import logging
@@ -142,8 +142,8 @@ class ProxyService:
         await self.session.commit()
 
         if notification and not data.auto_prolong:
-            expires_at = proxy.date_end
-            notify_at = expires_at - timedelta(hours=6)
+            expires_at = datetime.fromtimestamp(proxy.unixtime_end, tz=timezone.utc)
+            notify_at = expires_at - timedelta(hours=24)
 
             payload = {
                 "proxy_id": proxy.id,

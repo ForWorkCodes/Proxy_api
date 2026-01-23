@@ -76,7 +76,7 @@ class BuyProxyOrchestrator:
         # Send request to the api
         if test:
             now = datetime.utcnow()
-            end = now + timedelta(minutes=5)
+            end = now + timedelta(days=request.days)
             buying_status = {
                 "success": True,
                 "data": {

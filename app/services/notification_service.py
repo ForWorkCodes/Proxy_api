@@ -216,6 +216,19 @@ class NotificationService:
         for key in ("type", "language"):
             payload_data.pop(key, None)
 
+        now = datetime.now(timezone.utc)
+        expires_at_raw = payload_data.get("expires_at")
+        if expires_at_raw:
+            expires_at = datetime.fromisoformat(expires_at_raw)
+
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+            delta_seconds = (expires_at - now).total_seconds()
+            hours_left = max(0, int(delta_seconds // 3600))
+
+            payload_data["hours_left"] = hours_left
+
         message.update(payload_data)
 
         return message

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
@@ -96,16 +97,10 @@ async def test_activate_proxy_prlong_enables_auto_prolong(async_session: AsyncSe
     user = await _create_user(async_session)
     proxy = await _create_proxy(async_session, user.id, "10.0.0.1", 3128, auto_prolong=False)
 
-    print("USER:", user.id, user.telegram_id)
-    print("PROXY BEFORE:", proxy.ip, proxy.port, "auto_prolong=", proxy.auto_prolong)
-
     service = ProxyService(async_session)
     result = await service.activate_proxy_prlong(user, "10.0.0.1:3128")
 
-    print("SERVICE RESULT:", result)
-
     await async_session.refresh(proxy)
-    print("PROXY AFTER:", proxy.ip, proxy.port, "auto_prolong=", proxy.auto_prolong)
 
     assert result.success is True
     assert result.status_code == 200
@@ -143,26 +138,16 @@ async def test_cancel_proxy_prlong_disables_auto_prolong(async_session: AsyncSes
 async def test_create_proxy_schedules_notification_when_no_auto_prolong(
     async_session: AsyncSession,
 ):
-    print("\n=== TEST: create_proxy schedules notification when auto_prolong = False ===")
-
     user = await _create_user(async_session)
-    print("USER CREATED:")
-    print("  id =", user.id)
-    print("  telegram_id =", user.telegram_id)
-
     service = ProxyService(async_session)
-    print("ProxyService initialized")
-
+    
     data = _build_proxy_item(user.id, auto_prolong=False)
     print("PROXY ITEM BUILD:")
     print("  proxy_id =", data.proxy_id)
-    print("  ip:port =", f"{data.ip}:{data.port}")
-    print("  auto_prolong =", data.auto_prolong)
     print("  date_end =", data.date_end)
 
     await service.create_proxy(data, notification=True)
-    print("create_proxy() called with notification=True")
-
+    
     result = await async_session.execute(
         Notification.__table__.select().where(
             Notification.type == NotificationType.proxy_expiring
@@ -180,6 +165,47 @@ async def test_create_proxy_schedules_notification_when_no_auto_prolong(
     assert len(rows) == 1
     assert rows[0].user_id == user.id
 
+
+@pytest.mark.asyncio
+async def test_notification_time_in_multiple_timezones(async_session: AsyncSession):
+    print(":")
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+    # Берём фиксированный unixtime_end (UTC)
+    expires_at_utc = datetime(2026, 1, 26, 12, 0, 0, tzinfo=timezone.utc)
+    unixtime_end = int(expires_at_utc.timestamp())
+
+    data = _build_proxy_item(user.id, auto_prolong=False)
+    data.unixtime_end = unixtime_end  # важно: int, не строка
+    # date_end можно не трогать, если логика уже на unixtime_end
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(
+        Notification.__table__.select().where(
+            Notification.type == NotificationType.proxy_expiring
+        )
+    )
+    row = result.first()
+    assert row is not None
+
+    scheduled_at_db = row.scheduled_at  # скорее всего naive из sqlite
+
+    scheduled_at_utc = scheduled_at_db.replace(tzinfo=timezone.utc)
+    expected_notify_at_utc = expires_at_utc - timedelta(hours=24)
+    print("scheduled_at_utc =", repr(scheduled_at_utc))
+    print("expected_notify_at_utc =", repr(expected_notify_at_utc))
+    assert scheduled_at_utc == expected_notify_at_utc
+
+
+    # Проверяем “как это выглядит” в других TZ
+    dublin = ZoneInfo("Europe/Dublin")
+    ny = ZoneInfo("America/New_York")
+    tokyo = ZoneInfo("Asia/Tokyo")
+
+    assert scheduled_at_utc.astimezone(dublin).isoformat() == expected_notify_at_utc.astimezone(dublin).isoformat()
+    assert scheduled_at_utc.astimezone(ny).isoformat() == expected_notify_at_utc.astimezone(ny).isoformat()
+    assert scheduled_at_utc.astimezone(tokyo).isoformat() == expected_notify_at_utc.astimezone(tokyo).isoformat()
 
 @pytest.mark.asyncio
 async def test_create_proxy_skips_notification_when_auto_prolong_enabled(
