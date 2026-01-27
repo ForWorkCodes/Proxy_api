@@ -166,7 +166,7 @@ class PrologProxyOrchestrator:
         await self.session.refresh(proxy)
         logger.info(f"[Prolong UPDATE OK] Proxy ID={proxy.id}, User ID={user.id} - array={cur_proxy}")
 
-        await self._schedule_success_notification(user, proxy)
+        #await self._schedule_success_notification(user, proxy)
 
         # Update Transaction status
         await self.transaction_service.update_status(transaction_id, "completed", "Prolong complete")
