@@ -7,6 +7,7 @@ from app.models.user import User
 from app.services.notification_service import NotificationService
 from app.models.proxy import Proxy
 from app.core.constants import REVERSE_PROXY_TYPE_MAPPING
+from app.core.paths import EXPORTS_DIR
 from app.services.file_exporter import FileExporter
 from app.services.user_service import UserService
 from datetime import datetime, timedelta, timezone
@@ -369,7 +370,7 @@ class ProxyService:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"proxies_{user.telegram_id}_{timestamp}.{file_type}"
-        filepath = os.path.join("/tmp", filename)
+        filepath = os.path.join(str(EXPORTS_DIR), filename)
 
         file_exporter = FileExporter(self.session)
         if file_type == "csv":

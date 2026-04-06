@@ -3,6 +3,7 @@ from app.core.config import settings
 from fastapi.staticfiles import StaticFiles
 from app.core.middleware import InternalAuthMiddleware
 from app.core.logging_config import setup_logging
+from app.core.paths import EXPORTS_DIR
 
 setup_logging()
 
@@ -24,6 +25,6 @@ def create_app() -> FastAPI:
     app.include_router(debug.router, prefix=settings.API_V1_STR, tags=["Debug"])
     app.include_router(webhook.router, tags=["Webhook"])
 
-    app.mount("/static", StaticFiles(directory="/tmp"), name="static")
+    app.mount("/static", StaticFiles(directory=str(EXPORTS_DIR)), name="static")
 
     return app

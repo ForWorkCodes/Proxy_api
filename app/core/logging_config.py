@@ -1,8 +1,9 @@
 import logging
 import os
 from datetime import datetime, timezone
+from app.core.paths import LOGS_DIR
 
-LOG_DIR = os.getenv("LOG_DIR", "/app/logs")
+LOG_DIR = os.getenv("LOG_DIR", str(LOGS_DIR))
 os.makedirs(LOG_DIR, exist_ok=True)
 
 
