@@ -47,8 +47,10 @@ def _build_proxy_item(
     user_id: int,
     *,
     auto_prolong: bool,
-    date_end: datetime,
+    date_end: datetime | None = None,
 ) -> ProxyItemDB:
+    if date_end is None:
+        date_end = datetime.now(timezone.utc) + timedelta(days=1)
     date_start = date_end - timedelta(days=1)
     return ProxyItemDB(
         user_id=user_id,
@@ -81,6 +83,28 @@ def _normalize_expected_time(when: datetime) -> datetime:
 
 
 @pytest.mark.asyncio
+async def test_create_proxy_schedules_notification_when_no_auto_prolong(
+    async_session: AsyncSession,
+) -> None:
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+
+    data = _build_proxy_item(user.id, auto_prolong=False)
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(
+        Notification.__table__.select().where(
+            Notification.type == NotificationType.proxy_expiring
+        )
+    )
+    rows = result.fetchall()
+
+    assert len(rows) == 1
+    assert rows[0].user_id == user.id
+
+
+@pytest.mark.asyncio
 async def test_create_proxy_schedules_expiring_notification_at_expected_time(
     async_session: AsyncSession,
 ) -> None:
@@ -101,7 +125,7 @@ async def test_create_proxy_schedules_expiring_notification_at_expected_time(
     assert row.type == NotificationType.proxy_expiring
     assert row.sent is False
 
-    notify_at = proxy.date_end - timedelta(hours=6)
+    notify_at = proxy.date_end - timedelta(hours=24)
     expected_scheduled_at = _normalize_expected_time(notify_at)
     assert row.scheduled_at == expected_scheduled_at
 
@@ -109,3 +133,49 @@ async def test_create_proxy_schedules_expiring_notification_at_expected_time(
     assert payload["proxy_id"] == proxy.id
     assert payload["host"] == f"{data.host}:{data.port}"
     assert payload["expires_at"] == proxy.date_end.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_notification_time_in_multiple_timezones(async_session: AsyncSession) -> None:
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+
+    expires_at_utc = datetime(2026, 1, 26, 12, 0, 0, tzinfo=timezone.utc)
+    data = _build_proxy_item(user.id, auto_prolong=False, date_end=expires_at_utc)
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(
+        Notification.__table__.select().where(
+            Notification.type == NotificationType.proxy_expiring
+        )
+    )
+    row = result.first()
+    assert row is not None
+
+    scheduled_at_utc = row.scheduled_at.replace(tzinfo=timezone.utc)
+    expected_notify_at_utc = expires_at_utc - timedelta(hours=24)
+    assert scheduled_at_utc == expected_notify_at_utc
+
+    dublin = timezone(timedelta(hours=0))
+    new_york = timezone(timedelta(hours=-5))
+    tokyo = timezone(timedelta(hours=9))
+
+    assert scheduled_at_utc.astimezone(dublin).isoformat() == "2026-01-25T12:00:00+00:00"
+    assert scheduled_at_utc.astimezone(new_york).isoformat() == "2026-01-25T07:00:00-05:00"
+    assert scheduled_at_utc.astimezone(tokyo).isoformat() == "2026-01-25T21:00:00+09:00"
+
+
+@pytest.mark.asyncio
+async def test_create_proxy_skips_notification_when_auto_prolong_enabled(
+    async_session: AsyncSession,
+) -> None:
+    user = await _create_user(async_session)
+    service = ProxyService(async_session)
+    data = _build_proxy_item(user.id, auto_prolong=True)
+
+    await service.create_proxy(data, notification=True)
+
+    result = await async_session.execute(Notification.__table__.select())
+    rows = result.fetchall()
+    assert rows == []
